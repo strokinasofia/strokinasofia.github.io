@@ -276,6 +276,7 @@ body.phone{min-height:100%;overflow-x:hidden}
         </div>
         <div class="say"><input id="sayIn" maxlength="40" placeholder="Say something…" autocomplete="off"><button id="sayBtn">Send</button></div>
         <div class="pix" id="pNote"></div>
+        <div class="pix" id="pDiag" style="opacity:.5;font-size:9px"></div>
       </section>
     </main>
   </div>
@@ -2728,10 +2729,11 @@ function initPhone(){
     conn.on('open',()=>{setSt('Connected',true);send({t:'hello'})});
     conn.on('data',onWall);conn.on('close',()=>{setSt('Reconnecting…');setTimeout(connect,2500)});conn.on('error',()=>{})}
   if(PeerCls){peer=new PeerCls();peer.on('open',connect);
-    peer.on('error',e=>{if(welcomed&&!(conn&&conn.open))return;if(e.type==='peer-unavailable'){setSt('Screen offline');setTimeout(connect,4000)}else if(['network','server-error','socket-error','socket-closed'].includes(e.type)){setSt('No network');setTimeout(()=>{try{peer.reconnect()}catch(_){}},3000)}});
+    peer.on('error',e=>{lastErr=e.type;if(welcomed&&!(conn&&conn.open))return;if(e.type==='peer-unavailable'){setSt('Screen offline');setTimeout(connect,4000)}else if(['network','server-error','socket-error','socket-closed'].includes(e.type)){setSt('No network');setTimeout(()=>{try{peer.reconnect()}catch(_){}},3000)}});
     peer.on('disconnected',()=>setTimeout(()=>{try{peer.reconnect()}catch(_){}},2000))}
   if(bc){bc.onmessage=e=>{const d=e.data;if(d&&d.from==='wall'&&d.to===guest)onWall(d)};bc.postMessage({t:'hello',from:'phone',guest,wall:JOIN,mid:rid(12)})}
   setTimeout(()=>{if(!welcomed)setSt('Searching for screen…')},8000);
+  let lastErr='';const diag=()=>{$('#pDiag').textContent='v3 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
   setInterval(()=>{if(!welcomed)send({t:'hello'})},5000);
 
   function onWall(d){if(!d||!d.t)return;const k=d.t+(d.mid||'')+(d.rmid||'');if(seen.has(k)&&d.t!=='welcome')return;seen.add(k);
@@ -2795,7 +2797,8 @@ function initWall(){
     })}
   startPeer();
   let rl=null;function startRelay(){rl=relay(['sgnl/'+wallId+'/in'],d=>onMsg(d,r=>rl.pub('sgnl/'+wallId+'/out/'+d.guest,r)),netLabel)}
-  function netLabel(){const p=peer&&peer.open,r=rl&&rl.up;net.textContent=(p||r)?'● Live · phones can join'+(r?'':' · relay off'):'Connecting…'}
+  function netLabel(){const p=peer&&peer.open,r=rl&&rl.up;net.textContent=((p||r)?'● Live · phones can join':'Connecting…')+' · v3 direct '+(p?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')}
+  setInterval(netLabel,2000);
   startRelay();
   if(bc)bc.onmessage=e=>{const d=e.data;if(d&&d.from==='phone'&&d.wall===wallId)onMsg(d,r=>bc.postMessage(Object.assign(r,{from:'wall',to:d.guest})))};
   const seen=new Set();const lastPhoto={};
@@ -2822,7 +2825,7 @@ function initWall(){
   // phones always need an online copy: when the wall runs from a local file, the QR points at the hosted one
   const HOSTED='https://strokinasofia.github.io/signal/';
   const isOnline=/^https:$/.test(location.protocol);
-  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)}
+  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v3'}
   function drawQR(){const url=joinURL();const q=qrcode(0,'M');q.addData(url);q.make();const n=q.getModuleCount(),cell=8,pad=2;const c=$('#qr');c.width=c.height=(n+pad*2)*cell;const x=c.getContext('2d');
     x.fillStyle='#F2F0EA';x.fillRect(0,0,c.width,c.height);x.fillStyle='#101010';for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect((k+pad)*cell,(r+pad)*cell,cell,cell);
     $('#qrWarn').hidden=true}
