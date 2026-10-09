@@ -2646,6 +2646,19 @@ function relay(topics,onData,onState){if(!window.mqtt)return null;const out={cli
   out.pub=(topic,m)=>{const j=JSON.stringify(m);let ok=false;out.clients.forEach(c=>{if(c.connected){c.publish(topic,j,{qos:1});ok=true}});return ok};
   return out}
 const PART=14000;
+/* Third route: ntfy.sh over plain https/wss on port 443, which almost every wifi allows.
+   Photos go up as one file attachment; the wall fetches it from ntfy.sh. */
+const NTFY='https://ntfy.sh/';
+function ntfySub(topic,onData,onState){const o={up:false};
+  (function open(){let ws;try{ws=new WebSocket('wss://ntfy.sh/'+topic+'/ws')}catch(e){setTimeout(open,4000);return}
+    ws.onopen=()=>{o.up=true;onState&&onState()};ws.onclose=()=>{o.up=false;onState&&onState();setTimeout(open,3000)};ws.onerror=()=>{};
+    ws.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.event!=='message')return;const d=JSON.parse(m.message);if(m.attachment&&m.attachment.url)d.att=m.attachment.url;onData(d)}catch(_){}}})();
+  return o}
+function ntfyPub(topic,m){return fetch(NTFY+topic,{method:'POST',body:JSON.stringify(m)}).then(r=>r.ok).catch(()=>false)}
+function ntfyFile(topic,meta,blob){return fetch(NTFY+topic,{method:'PUT',body:blob,headers:{'X-Message':JSON.stringify(meta),'X-Filename':'photo.jpg'}}).then(r=>r.ok).catch(()=>false)}
+const dataToBlob=d=>fetch(d).then(r=>r.blob());
+const blobToData=b=>new Promise((res,rej)=>{const f=new FileReader();f.onload=()=>res(f.result);f.onerror=rej;f.readAsDataURL(b)});
+const ntIn=w=>'sgnl-'+w+'-in',ntOut=(w,g)=>'sgnl-'+w+'-o-'+g;
 function splitParts(mid,img){const n=Math.ceil(img.length/PART),a=[];for(let i=0;i<n;i++)a.push({t:'part',mid,i,n,d:img.slice(i*PART,(i+1)*PART)});return a}
 
 /* ---------- Tiers. Odds are per photo; one prize per phone. ---------- */
@@ -2718,13 +2731,16 @@ function initPhone(){
   let conn=null,peer=null,welcomed=false,photoData=null,pending=null,cool=0;const seen=new Set();
   const inT='sgnl/'+JOIN+'/in',outT='sgnl/'+JOIN+'/out/'+guest;
   const rl=relay([outT],d=>onWall(d),()=>{if(rl&&rl.up&&!welcomed){setSt('Linking…');send({t:'hello'})}});
+  const nt=ntfySub(ntOut(JOIN,guest),d=>onWall(d),()=>{if(nt.up&&!welcomed){setSt('Linking…');send({t:'hello'})}});let ntHello=0;
   function send(m,local=true){m.from='phone';m.guest=guest;m.wall=JOIN;m.mid=m.mid||rid(12);let ok=false;
     if(conn&&conn.open){try{conn.send(m);ok=true}catch(e){}}
     if(rl&&rl.pub(inT,m))ok=true;
+    if(m.t!=='part'&&nt.up&&(m.t!=='hello'||Date.now()-ntHello>15000)){if(m.t==='hello')ntHello=Date.now();ntfyPub(ntIn(JOIN),m);ok=true}
     if(local&&bc){try{bc.postMessage(m);ok=true}catch(e){}}return ok}
   function sendPhoto(mid,img){let ok=false;
     if(bc){try{bc.postMessage({t:'photo',mid,img,from:'phone',guest,wall:JOIN});ok=true}catch(e){}}
-    splitParts(mid,img).forEach(p=>{if(send(p,false))ok=true});return ok}
+    splitParts(mid,img).forEach(p=>{if(send(p,false))ok=true});
+    if(nt.up){ok=true;dataToBlob(img).then(b=>ntfyFile(ntIn(JOIN),{t:'photo',mid,guest,from:'phone',wall:JOIN},b))}return ok}
   function connect(){if(!peer||peer.destroyed)return;conn=peer.connect(JOIN,{reliable:true,serialization:'json'});
     conn.on('open',()=>{setSt('Connected',true);send({t:'hello'})});
     conn.on('data',onWall);conn.on('close',()=>{setSt('Reconnecting…');setTimeout(connect,2500)});conn.on('error',()=>{})}
@@ -2733,7 +2749,7 @@ function initPhone(){
     peer.on('disconnected',()=>setTimeout(()=>{try{peer.reconnect()}catch(_){}},2000))}
   if(bc){bc.onmessage=e=>{const d=e.data;if(d&&d.from==='wall'&&d.to===guest)onWall(d)};bc.postMessage({t:'hello',from:'phone',guest,wall:JOIN,mid:rid(12)})}
   setTimeout(()=>{if(!welcomed)setSt('Searching for screen…')},8000);
-  let lastErr='';const diag=()=>{$('#pDiag').textContent='v3 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
+  let lastErr='';const diag=()=>{$('#pDiag').textContent='v4 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(nt.up?'on':'off')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
   setInterval(()=>{if(!welcomed)send({t:'hello'})},5000);
 
   function onWall(d){if(!d||!d.t)return;const k=d.t+(d.mid||'')+(d.rmid||'');if(seen.has(k)&&d.t!=='welcome')return;seen.add(k);
@@ -2789,25 +2805,29 @@ function initWall(){
   function startPeer(){if(!PeerCls){net.textContent='Offline · test phone only';return}
     peer=new PeerCls(wallId);
     peer.on('open',()=>{tries=0;netLabel()});
-    peer.on('connection',c=>{c.on('data',d=>onMsg(d,r=>{try{c.send(r)}catch(e){}if(rl&&d&&d.guest)rl.pub('sgnl/'+wallId+'/out/'+d.guest,r)}))});
+    peer.on('connection',c=>{c.on('data',d=>onMsg(d,r=>{try{c.send(r)}catch(e){}replyRelays(d,r)}))});
     peer.on('disconnected',()=>{net.textContent='Reconnecting…';setTimeout(()=>{try{peer.reconnect()}catch(e){}},2000)});
     peer.on('error',e=>{
-      if(e.type==='unavailable-id'){tries++;peer.destroy();if(tries>5){wallId='sgnl-'+rid(10);localStorage.setItem('signalWallId',wallId);drawQR();if(rl)rl.clients.forEach(c=>c.end(true));startRelay()}setTimeout(startPeer,3000);net.textContent='Waiting for screen id…'}
+      if(e.type==='unavailable-id'){tries++;peer.destroy();if(tries>5){wallId='sgnl-'+rid(10);localStorage.setItem('signalWallId',wallId);drawQR();if(rl)rl.clients.forEach(c=>c.end(true));location.reload()}setTimeout(startPeer,3000);net.textContent='Waiting for screen id…'}
       else if(['network','server-error','socket-error','socket-closed'].includes(e.type)){net.textContent='No network · retrying';setTimeout(()=>{try{peer.destroy()}catch(_){}startPeer()},5000)}
     })}
   startPeer();
-  let rl=null;function startRelay(){rl=relay(['sgnl/'+wallId+'/in'],d=>onMsg(d,r=>rl.pub('sgnl/'+wallId+'/out/'+d.guest,r)),netLabel)}
-  function netLabel(){const p=peer&&peer.open,r=rl&&rl.up;net.textContent=((p||r)?'● Live · phones can join':'Connecting…')+' · v3 direct '+(p?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')}
+  let rl=null,nt=null;
+  function replyRelays(d,r){if(!d||!d.guest)return;if(rl)rl.pub('sgnl/'+wallId+'/out/'+d.guest,r);if(nt&&nt.up&&r.t!=='got')ntfyPub(ntOut(wallId,d.guest),r)}
+  function startRelay(){rl=relay(['sgnl/'+wallId+'/in'],d=>onMsg(d,r=>replyRelays(d,r)),netLabel);nt=ntfySub(ntIn(wallId),d=>onMsg(d,r=>replyRelays(d,r)),netLabel)}
+  function netLabel(){const p=peer&&peer.open,r=rl&&rl.up,w=nt&&nt.up;net.textContent=((p||r||w)?'● Live · phones can join':'Connecting…')+' · v4 direct '+(p?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(w?'on':'off')}
   setInterval(netLabel,2000);
   startRelay();
   if(bc)bc.onmessage=e=>{const d=e.data;if(d&&d.from==='phone'&&d.wall===wallId)onMsg(d,r=>bc.postMessage(Object.assign(r,{from:'wall',to:d.guest})))};
   const seen=new Set();const lastPhoto={};
   let winners=[];try{winners=JSON.parse(localStorage.getItem('signalWinners')||'[]')}catch(e){}
-  const parts={};
+  const parts={},fetching=new Set();
   function onMsg(d,reply){if(!d||!d.t)return;
     if(d.t==='part'){if(seen.has(d.mid)||typeof d.d!=='string'||d.n>400)return;const b=parts[d.mid]||(parts[d.mid]={n:d.n,a:[],got:0,t:Date.now()});
       if(b.a[d.i]===undefined){b.a[d.i]=d.d;b.got++}if(b.got===1)reply({t:'got',rmid:d.mid,mid:rid(8)});
       if(b.got===b.n){delete parts[d.mid];onMsg({t:'photo',mid:d.mid,guest:d.guest,img:b.a.join('')},reply)}return}
+    if(d.t==='photo'&&!d.img&&d.att){if(seen.has(d.mid)||fetching.has(d.mid))return;fetching.add(d.mid);reply({t:'got',rmid:d.mid,mid:rid(8)});
+      fetch(d.att).then(r=>r.blob()).then(blobToData).then(img=>{fetching.delete(d.mid);onMsg(Object.assign({},d,{img,att:null}),reply)}).catch(()=>fetching.delete(d.mid));return}
     if(d.mid){if(seen.has(d.mid))return;seen.add(d.mid)}
     if(d.t==='hello')reply({t:'welcome',mid:rid(8)});
     else if(d.t==='photo'&&typeof d.img==='string'&&d.img.startsWith('data:image/')){
@@ -2825,7 +2845,7 @@ function initWall(){
   // phones always need an online copy: when the wall runs from a local file, the QR points at the hosted one
   const HOSTED='https://strokinasofia.github.io/signal/';
   const isOnline=/^https:$/.test(location.protocol);
-  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v3'}
+  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v4'}
   function drawQR(){const url=joinURL();const q=qrcode(0,'M');q.addData(url);q.make();const n=q.getModuleCount(),cell=8,pad=2;const c=$('#qr');c.width=c.height=(n+pad*2)*cell;const x=c.getContext('2d');
     x.fillStyle='#F2F0EA';x.fillRect(0,0,c.width,c.height);x.fillStyle='#101010';for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect((k+pad)*cell,(r+pad)*cell,cell,cell);
     $('#qrWarn').hidden=true}
