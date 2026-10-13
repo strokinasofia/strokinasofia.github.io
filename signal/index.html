@@ -187,7 +187,7 @@ body.phone *{font-family:var(--display);font-weight:900}
       <button class="btn on" id="timeLive">Live</button><button class="btn" id="timeScrub">14.09.28</button>
       <input type="range" id="timeSlider" min="1020" max="1440" step="1" value="1200" hidden><span class="pix" id="timeVal" hidden></span></div>
     <div class="group"><span class="pix lbl">Test</span>
-      <button class="btn" id="demoBtn" title="D">Demo guest</button><button class="btn" id="phoneBtn">Open test phone</button><button class="btn" id="reactBtn" title="R">Reaction</button></div>
+      <button class="btn" id="demoBtn" title="D">Demo guest</button><button class="btn" id="driveBtn" title="T">Test drive</button><button class="btn" id="phoneBtn">Open test phone</button><button class="btn" id="reactBtn" title="R">Reaction</button></div>
     <div class="group"><span class="pix lbl">Mode</span><button class="btn" id="drawsBtn"></button></div>
     <div class="group"><button class="btn" id="qrBtn">QR on</button><button class="btn" id="prizeBtn">Prizes</button></div>
     <div class="group"><button class="btn solid" id="restartBtn">Restart from zero</button></div>
@@ -237,11 +237,11 @@ body.phone *{font-family:var(--display);font-weight:900}
           <li><b>Cut-out</b><span>1 in 70 · backstage +1</span></li>
           <li><b>Collage</b><span>1 in 50 · surprise gift</span></li>
           <li><b>Coordinates</b><span>1 in 40 · free drink</span></li>
-          <li><b>Inverted · Mirrored · Sketch</b><span>on the wall</span></li>
+          <li><b>Inverted · Mirrored · Smeared · Glitched · Cut · Sketch</b><span>on the wall</span></li>
         </ul>
       </section>
       <section id="pPreview" hidden>
-        <div class="ph-p">It lands on the big screen with one of seven effects. The rare ones win prizes.</div>
+        <div class="ph-p">It lands on the big screen with one of ten effects. The rare ones win prizes.</div>
         <div class="row2"><button class="pbtn" id="retake">Retake</button><button class="pbtn fill" id="sendBtn">Send to the wall</button></div>
         <img id="pPhoto" alt="" hidden>
       </section>
@@ -2650,14 +2650,18 @@ const TIERS={
   track:{name:'Coordinates',prize:'Free drink',text:'Little squares locked onto your photo and wrote down where they found you. You win a free drink at the bar.',win:true,toast:'Coordinates drawn · free drink'},
   invert:{name:'Inverted',prize:'On the wall',text:'Your photo flipped its tones into red. No prize this time, every new photo is a new draw.'},
   stretch:{name:'Mirrored',prize:'On the wall',text:'Your photo got stretched, mirrored and merged into three. No prize this time, every new photo is a new draw.'},
+  smear:{name:'Smeared',prize:'On the wall',text:'Your photo got dragged across the scanner while it was still reading. No prize this time, every new photo is a new draw.'},
+  glitch:{name:'Glitched',prize:'On the wall',text:'Your photo came off a chewed-up tape. No prize this time, every new photo is a new draw.'},
+  scissor:{name:'Cut',prize:'On the wall',text:'Your photo got cut along the dotted lines and taped back a bit wrong. No prize this time, every new photo is a new draw.'},
   sketch:{name:'Sketch',prize:'On the wall',text:'Your photo turned into a child\'s drawing. No prize this time, every new photo is a new draw.'}
 };
 // test day: receipts come up a lot and every prize effect really wins, so the whole flow can be tried
 let DEMO_DRAWS=localStorage.getItem('signalMode')!=='real';const DECK=[];
-function drawTier(){if(DEMO_DRAWS){if(!DECK.length){DECK.push('receipt','receipt','receipt','cutout','collage','collage','track','track','invert','stretch');if(Math.random()<.4)DECK.push('sketch');for(let i=DECK.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[DECK[i],DECK[j]]=[DECK[j],DECK[i]]}}return DECK.pop()}
+const ALL_FX=['receipt','cutout','collage','track','invert','stretch','smear','glitch','scissor','sketch'];let lastFx='';
+function drawTier(){if(DEMO_DRAWS){if(!DECK.length){DECK.push(...ALL_FX);for(let i=DECK.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[DECK[i],DECK[j]]=[DECK[j],DECK[i]]}
+    if(DECK[DECK.length-1]===lastFx)DECK.unshift(DECK.pop())}return lastFx=DECK.pop()}
   return drawTierReal()}
-// sketch is the rarest of the plain effects
-function drawTierReal(){const r=Math.random();if(r<1/100)return'receipt';if(r<1/100+1/70)return'cutout';if(r<1/100+1/70+1/50)return'collage';if(r<1/100+1/70+1/50+1/40)return'track';const q=Math.random();return q<.46?'invert':q<.92?'stretch':'sketch'}
+function drawTierReal(){const r=Math.random();if(r<1/100)return'receipt';if(r<1/100+1/70)return'cutout';if(r<1/100+1/70+1/50)return'collage';if(r<1/100+1/70+1/50+1/40)return'track';const q=Math.random();return q<.25?'invert':q<.5?'stretch':q<.67?'smear':q<.84?'glitch':q<.94?'scissor':'sketch'}
 
 /* ---------- Scribbles: hand-drawn strokes in a unit box, drawn progressively ---------- */
 function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -2781,6 +2785,32 @@ async function renderEffect(img,tier,seed,o={}){
         let v=a1<1?pan(nx/s1,y,0):0;if(a1>0&&a2<1)v=lerp(v,pan((nx-s1)/(s2-s1),y,1),a1);if(a2>0)v=lerp(v,pan((nx-s2)/(1-s2),y,0),a2);
         const k=Math.min(Math.abs(nx-s1),Math.abs(nx-s2));v*=1-.15*Math.exp(-k*k*9000);const g=v*255;put(y*cw+X,g,g,g)}}
     x.putImageData(od,0,0)}
+  else if(tier==='smear'){
+    // smeared, like the dragged eyes on the moodboard: dark, and the light parts streak sideways as if pulled through the scanner
+    const dir=R()<.5?1:-1,c0=ch*(.2+R()*.6),bw=ch*(.1+R()*.12),dc=.978+R()*.014;const T=new Float32Array(N);
+    for(let i=0;i<N;i++){const v=smooth(.18,.85,L[i]);T[i]=v*v}
+    for(let y=0;y<ch;y++){const k=Math.exp(-Math.pow((y-c0)/bw,2))*1+.08,j=Math.round((R()-.5)*cw*.012*k);let acc=0;
+      for(let n=0;n<cw;n++){const X=dir>0?n:cw-1-n,i=y*cw+X,v=T[y*cw+clamp(X+j,0,cw-1)];acc=Math.max(v>.5?v:0,acc*dc);const o=Math.min(1,Math.max(v,acc*k))*255;put(i,o,o,o)}}
+    x.putImageData(od,0,0)}
+  else if(tier==='glitch'){
+    // glitched: a chewed tape, dark frame, rows torn sideways, blocks repeated, a pixel label stuck in the middle
+    const T=new Float32Array(N);for(let i=0;i<N;i++)T[i]=Math.pow(smooth(.1,.95,L[i]),1.7);
+    let y=0;while(y<ch){const h=2+(R()*R()*28|0),off=R()<.55?Math.round((R()-.5)*cw*(R()<.2?.5:.12)):0,rep_=R()<.12?Math.round(R()*h*3):0,dim=R()<.15?.35:1;
+      for(let yy=y;yy<Math.min(ch,y+h);yy++){const sy=clamp(yy-rep_,0,ch-1);for(let X=0;X<cw;X++){let v=T[sy*cw+((X-off)%cw+cw)%cw]*dim;if(R()<.004)v=1;const o=v*255;put(yy*cw+X,o,o,o)}}y+=h}
+    x.putImageData(od,0,0);
+    const t=mkCv(36,9),tx=t.getContext('2d');tx.fillStyle='#000';tx.fillRect(0,0,36,9);tx.fillStyle='#fff';tx.font='bold 9px monospace';tx.textBaseline='top';tx.fillText(R()<.5?'SIGNAL':'▮▮▮▮',1,0);
+    x.imageSmoothingEnabled=false;const lw_=cw*.3;x.drawImage(t,(cw-lw_)/2,ch*(.42+R()*.16),lw_,lw_/4);x.imageSmoothingEnabled=true}
+  else if(tier==='scissor'){
+    // cut: two dotted lines with scissors, the strip between them cut out and taped back off-centre
+    grey();const g=mkCv(cw,ch);g.getContext('2d').putImageData(od,0,0);x.fillStyle=`rgb(${PAPER})`;x.fillRect(0,0,cw,ch);
+    const y1=ch*(.22+R()*.2),y2=y1+ch*(.22+R()*.22),dx=cw*(.09+R()*.12)*(R()<.5?-1:1),rot=(R()-.5)*.05;
+    x.drawImage(g,0,0,cw,y1,0,0,cw,y1);x.drawImage(g,0,y2,cw,ch-y2,0,y2+ch*.015,cw,ch-y2);
+    x.save();x.translate(cw/2+dx,(y1+y2)/2);x.rotate(rot);x.shadowColor='rgba(0,0,0,.35)';x.shadowBlur=cw/90;x.shadowOffsetY=cw/200;x.drawImage(g,0,y1,cw,y2-y1,-cw/2,-(y2-y1)/2,cw,y2-y1);x.restore();
+    const u=cw/60;x.strokeStyle='#111';x.lineWidth=Math.max(1.5,u*.3);x.setLineDash([u*1.2,u*.9]);
+    const sc=(yy,side)=>{x.beginPath();x.moveTo(0,yy);x.lineTo(cw,yy);x.stroke();x.save();x.setLineDash([]);x.translate(side?cw-u*5:u*5,yy);if(side)x.scale(-1,1);
+      x.beginPath();x.arc(-u*1.6,-u*1.3,u*1.1,0,7);x.arc(-u*1.6,u*1.3,u*1.1,0,7);x.fillStyle=`rgb(${PAPER})`;x.fill();x.stroke();
+      x.beginPath();x.moveTo(-u*.7,-u*.8);x.lineTo(u*3,u*.9);x.moveTo(-u*.7,u*.8);x.lineTo(u*3,-u*.9);x.stroke();x.restore()};
+    sc(y1,R()<.5);sc(y2,R()<.5);x.setLineDash([])}
   else if(tier==='sketch'){
     // a child's drawing: wobbly graphite outlines, scratchy hatching in the dark, red crayon in patches
     const B=boxBlur(L,cw,ch,1,1);const s1=R()*9,s2=R()*9;const at=(X,Y)=>B[clamp(Y|0,1,ch-2)*cw+clamp(X|0,1,cw-2)];
@@ -2940,7 +2970,7 @@ function initPhone(){
     peer.on('disconnected',()=>setTimeout(()=>{try{peer.reconnect()}catch(_){}},2000))}
   if(bc){bc.onmessage=e=>{const d=e.data;if(d&&d.from==='wall'&&d.to===guest)onWall(d)};bc.postMessage({t:'hello',from:'phone',guest,wall:JOIN,mid:rid(12)})}
   setTimeout(()=>{if(!welcomed)setSt('Searching for screen…')},8000);
-  let lastErr='';const diag=()=>{$('#pDiag').textContent='v10 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(nt.up?'on':'off')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
+  let lastErr='';const diag=()=>{$('#pDiag').textContent='v11 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(nt.up?'on':'off')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
   setInterval(()=>{if(!welcomed)send({t:'hello'})},5000);
 
   function onWall(d){if(!d||!d.t)return;const k=d.t+(d.mid||'')+(d.rmid||'');if(seen.has(k)&&d.t!=='welcome')return;seen.add(k);
@@ -2969,7 +2999,7 @@ function initPhone(){
   };
   // the phone renders the same effect from the same seed, so the guest can keep it
   let fxData=null,fxTier='';
-  async function showResult(d){const tier=fxName(d.tier),T=TIERS[tier];cool=Date.now()+15000;fxData=null;fxTier=tier;
+  async function showResult(d){const tier=fxName(d.tier),T=TIERS[tier];cool=Date.now()+5000;fxData=null;fxTier=tier;
     $('#pResKicker').textContent='Your effect';$('#pResTitle').textContent=T.name;
     $('#pResText').textContent=T.win&&d.code?'You won: '+T.prize+'. '+T.text:T.win?'Your photo is on the big screen as a '+T.name+'. Every new photo is a new draw.':T.text;
     const won=T.win&&d.code;if(won)localStorage.setItem('signalWin',JSON.stringify({tier,code:d.code}));
@@ -3020,7 +3050,7 @@ function initWall(){
   let rl=null,nt=null;
   function replyRelays(d,r){if(!d||!d.guest)return;if(rl)rl.pub('sgnl/'+wallId+'/out/'+d.guest,r);if(nt&&nt.up&&r.t!=='got')ntfyPub(ntOut(wallId,d.guest),r)}
   function startRelay(){rl=relay(['sgnl/'+wallId+'/in'],d=>onMsg(d,r=>replyRelays(d,r)),netLabel);nt=ntfySub(ntIn(wallId),d=>onMsg(d,r=>replyRelays(d,r)),netLabel)}
-  function netLabel(){const p=peer&&peer.open,r=rl&&rl.up,w=nt&&nt.up;net.textContent=((p||r||w)?'● Live · phones can join':'Connecting…')+' · v10 direct '+(p?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(w?'on':'off')}
+  function netLabel(){const p=peer&&peer.open,r=rl&&rl.up,w=nt&&nt.up;net.textContent=((p||r||w)?'● Live · phones can join':'Connecting…')+' · v11 direct '+(p?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(w?'on':'off')}
   setInterval(netLabel,2000);
   startRelay();
   if(bc)bc.onmessage=e=>{const d=e.data;if(d&&d.from==='phone'&&d.wall===wallId)onMsg(d,r=>bc.postMessage(Object.assign(r,{from:'wall',to:d.guest})))};
@@ -3036,11 +3066,11 @@ function initWall(){
     if(d.mid){if(seen.has(d.mid))return;seen.add(d.mid)}
     if(d.t==='hello')reply({t:'welcome',mid:rid(8)});
     else if(d.t==='photo'&&typeof d.img==='string'&&d.img.startsWith('data:image/')){
-      const now=Date.now();if(lastPhoto[d.guest]&&now-lastPhoto[d.guest]<12000){reply({t:'wait',secs:Math.ceil((12000-(now-lastPhoto[d.guest]))/1000),mid:rid(8)});return}
+      const now=Date.now();const gap=DEMO_DRAWS?4000:12000;if(lastPhoto[d.guest]&&now-lastPhoto[d.guest]<gap){reply({t:'wait',secs:Math.ceil((gap-(now-lastPhoto[d.guest]))/1000),mid:rid(8)});return}
       lastPhoto[d.guest]=now;
       const isDemo=/^(demo|drop)/.test(d.guest);
-      // test day: a phone's first photo is always a receipt, then the deck is weighted to receipts, and every prize effect wins
-      let tier=DEMO_DRAWS&&!isDemo&&!testSeen.has(d.guest)?'receipt':drawTier();testSeen.add(d.guest);const seed=(Math.random()*1e9)|0;
+      // test day: the effects come one after another, all ten before any repeats, and every prize effect wins
+      let tier=drawTier();const seed=(Math.random()*1e9)|0;
       const prized=TIERS[tier].win&&!isDemo&&(DEMO_DRAWS||!winners.some(w=>w.guest===d.guest));
       let code=null;if(prized){code='SGNL-'+rid(5).toUpperCase();winners.push({guest:d.guest,tier,code,time:now});localStorage.setItem('signalWinners',JSON.stringify(winners));renderWinners()}
       reply({t:'result',rmid:d.mid,tier,code,seed,mid:rid(8)});
@@ -3053,7 +3083,7 @@ function initWall(){
   // phones always need an online copy: when the wall runs from a local file, the QR points at the hosted one
   const HOSTED='https://strokinasofia.github.io/signal/';
   const isOnline=/^https:$/.test(location.protocol);
-  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v10'}
+  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v11'}
   function drawQR(){const url=joinURL();const q=qrcode(0,'M');q.addData(url);q.make();const n=q.getModuleCount(),cell=8,pad=2;const c=$('#qr');c.width=c.height=(n+pad*2)*cell;const x=c.getContext('2d');
     x.fillStyle='#F2F0EA';x.fillRect(0,0,c.width,c.height);x.fillStyle='#101010';for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect((k+pad)*cell,(r+pad)*cell,cell,cell);
     $('#qrWarn').hidden=true}
@@ -3153,12 +3183,15 @@ void main(){
   /* ---------- light slabs: tall monoliths either side, radiating colour into the room ---------- */
   const logoTex=new T3.Texture();let logoA=1.22;
   const SV='varying vec2 vUv;varying vec3 vN;void main(){vUv=uv;vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}';
-  const SF=`precision highp float;varying vec2 vUv;varying vec3 vN;uniform vec3 uA,uB;uniform float uT,uBeat,uPh,uLA,uDim,uLogoOn,uHot;uniform vec3 uSize;uniform sampler2D uLogo;
+  const SF=`precision highp float;varying vec2 vUv;varying vec3 vN;uniform vec3 uA,uB;uniform float uT,uBeat,uPh,uLA,uDim,uLogoOn,uHot;uniform vec3 uSize;uniform sampler2D uLogo,uTn,uWn;
 void main(){
- // glossy red lacquer columns: a key light from the front left, a deep shadow side, softbox reflections and a sharp highlight on top
+ // glossy red columns, printed rather than lacquered: a key light from the front left, a deep shadow side, softbox reflections and a sharp highlight on top
  vec3 n=normalize(vN);float y=vUv.y*uSize.y;
  vec3 Lk=normalize(vec3(-.55,0.,.83));float dif=max(dot(n,Lk),0.);float wrap=max(dot(n,Lk)*.5+.5,0.);
  vec3 base=mix(uA,uB,smoothstep(0.,1.,(y-1.)/12.+.08*sin(uT*.4+uPh)));
+ // a photocopied skin: toner grain and fold lines of worn paper wrapped round the column
+ float tn=texture2D(uTn,vec2(vUv.x*2.,y*.09)).r,wn=texture2D(uWn,vec2(vUv.x*1.3+uPh,y*.05)).r;float gr=smoothstep(.15,.85,tn);
+ base*=.5+gr*.75;base=mix(base,vec3(.1,.02,.02),(1.-wn)*.55);
  vec3 c=base*(.05+.35*wrap*wrap+.85*pow(dif,1.6));
  c+=(1.-wrap)*vec3(.02,.03,.08);
  // the vertical SIG/NAL logo printed under the gloss in paper white, twice round each column, drifting upwards
@@ -3167,15 +3200,16 @@ void main(){
  c=c*(1.+uBeat*1.1)+uBeat*.18*base*wrap+uHot*vec3(1.,.9,.85)*.7*wrap;
  vec3 H=normalize(Lk+vec3(0.,0.,1.));float sp=pow(max(dot(n,H),0.),140.)*1.6;
  float st=exp(-pow((n.x+.36)/.05,2.))*.55+exp(-pow((n.x-.62)/.04,2.))*.3;st*=.8+.2*sin(y*.21+uT*.3+uPh);
+ float rough=.35+.65*smoothstep(.35,.75,tn)*wn;sp*=rough;st*=rough;
  float fr=pow(1.-max(n.z,0.),5.);
  c+=(sp+st)*vec3(1.,.96,.93)*(1.+uBeat*.6+uHot)+fr*vec3(1.,.3,.2)*(.25+uBeat*.3);
  gl_FragColor=vec4(c*uDim,1.);}`;
   const GF=`varying vec2 vUv;uniform vec3 uC;uniform float uI;void main(){vec2 p=(vUv-.5)*2.;float a=exp(-p.x*p.x*5.)*smoothstep(1.,.25,abs(p.y));gl_FragColor=vec4(uC*a*uI,1.);}`;
   const FV='varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}';
-  const FF=`precision highp float;varying vec3 vW;uniform vec4 uP[5];uniform vec3 uC[5];uniform sampler2D uToner,uWorn;
+  const FF=`precision highp float;varying vec3 vW;uniform vec4 uP[4];uniform vec3 uC[4];uniform sampler2D uToner,uWorn;
 float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 void main(){vec3 col=vec3(.012,.016,.034);
- for(int i=0;i<5;i++){vec2 d=vW.xz-uP[i].xz;float w=uP[i].w;
+ for(int i=0;i<4;i++){vec2 d=vW.xz-uP[i].xz;float w=uP[i].w;
   float pool=exp(-dot(d,d)*.1/(w*w*.4));
   float streak=exp(-d.x*d.x/(w*w*.35))*exp(-max(d.y,0.)*.1)*step(0.,d.y);
   col+=uC[i]*(pool*.3+streak*.22);}
@@ -3189,10 +3223,10 @@ void main(){vec3 col=vec3(.012,.016,.034);
     {side:-1,z:-3.4,w:1.5,d:1.5,A:[1,.23,.08],B:[.5,.02,.03],logo:1,ph:0},
     {side:1,z:-3.4,w:1.5,d:1.5,A:[1,.2,.1],B:[.55,.03,.04],logo:1,ph:1.3},
     {side:-1,z:-11,w:1.6,d:1.6,A:[.95,.16,.07],B:[.42,.02,.03],logo:1,ph:2.1},
-    {side:1,z:-11,w:1.6,d:1.6,A:[1,.27,.12],B:[.48,.03,.03],logo:1,ph:3.4},
-    {side:0,z:-24,w:2.8,d:2.8,A:[1,.23,.08],B:[.7,.04,.03],logo:1,ph:4.2}];
+    {side:1,z:-11,w:1.6,d:1.6,A:[1,.27,.12],B:[.48,.03,.03],logo:1,ph:3.4}];
+  const wrapTex=src=>{const t=loadTex(src);t.wrapS=t.wrapT=T3.RepeatWrapping;return t};const pTn=wrapTex(TONER),pWn=wrapTex(WORN);
   const slabs=SL.map(s=>{const H=60;
-    const mat=new T3.ShaderMaterial({uniforms:{uA:{value:new T3.Vector3(...s.A)},uB:{value:new T3.Vector3(...s.B)},uT:{value:0},uBeat:{value:0},uPh:{value:s.ph},uLA:{value:logoA},uDim:{value:s.z<-20?.75:s.z<-8?.85:1},uLogoOn:{value:s.logo},uSize:{value:new T3.Vector3(s.w/2,H,s.d)},uLogo:{value:logoTex},uHot:{value:0}},vertexShader:SV,fragmentShader:SF});
+    const mat=new T3.ShaderMaterial({uniforms:{uA:{value:new T3.Vector3(...s.A)},uB:{value:new T3.Vector3(...s.B)},uT:{value:0},uBeat:{value:0},uPh:{value:s.ph},uLA:{value:logoA},uDim:{value:s.z<-20?.75:s.z<-8?.85:1},uLogoOn:{value:s.logo},uSize:{value:new T3.Vector3(s.w/2,H,s.d)},uLogo:{value:logoTex},uTn:{value:pTn},uWn:{value:pWn},uHot:{value:0}},vertexShader:SV,fragmentShader:SF});
     const m=new T3.Mesh(new T3.CylinderGeometry(s.w/2,s.w/2,H,72,1,true),mat);scene.add(m);
     const gm=new T3.ShaderMaterial({uniforms:{uC:{value:new T3.Vector3(...s.A)},uI:{value:.5}},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:GF,transparent:true,depthWrite:false,blending:T3.AdditiveBlending});
     const g=new T3.Mesh(new T3.PlaneGeometry(s.w*6,H*1.15),gm);g.position.z=-s.d/2-.05;m.add(g);
@@ -3217,12 +3251,20 @@ void main(){vec3 col=vec3(.012,.016,.034);
     const draw=()=>{x.clearRect(0,0,2048,96);x.textAlign='left';x.fillText('SEND',8,50);x.textAlign='center';x.fillText('YOUR',1024,50);x.textAlign='right';x.fillText('SIGNAL.',2040,50);seamTex.needsUpdate=true};
     var seamTex=new T3.CanvasTexture(seamCv);(document.fonts?document.fonts.ready:Promise.resolve()).then(draw)}
   const seamM=new T3.Mesh(new T3.PlaneGeometry(15,15*96/2048),new T3.MeshBasicMaterial({map:seamTex,transparent:true,opacity:.22,depthWrite:false,blending:T3.AdditiveBlending}));seamM.position.set(0,-1.2,0);backG.add(seamM);
+  const blCv=document.createElement('canvas');blCv.width=1400;blCv.height=Math.round(1400*216/420);const blTex=new T3.CanvasTexture(blCv);
+  {const im=new Image(),tn=new Image();let n=0;const go=()=>{if(++n<2)return;const W=blCv.width,H=blCv.height,x=blCv.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0,W,H);
+    const t=mkCv(W,H),tx=t.getContext('2d',{willReadFrequently:true});tx.drawImage(tn,0,0,W,H*1.4);const a=x.getImageData(0,0,W,H),b=tx.getImageData(0,0,W,H).data;
+    // a bad photocopy: toner dropouts eat into the letters, a few rows skip
+    let skip=0;for(let y=0;y<H;y++){if(Math.random()<.02)skip=Math.random()*6|0;const rk=skip-->0?.25:1;for(let X=0;X<W;X++){const i=(y*W+X)*4,l=b[i]/255;
+      a.data[i]=242;a.data[i+1]=240;a.data[i+2]=234;a.data[i+3]*=clamp((l-.25)*2.2,0,1)*rk*(.75+Math.random()*.25)}}
+    x.putImageData(a,0,0);blTex.needsUpdate=true};im.onload=go;tn.onload=go;im.src=LOGO_SM;tn.src=TONER}
+  const blM=new T3.Mesh(new T3.PlaneGeometry(13,13*216/420),new T3.MeshBasicMaterial({map:blTex,transparent:true,opacity:.2,depthWrite:false,blending:T3.AdditiveBlending}));blM.position.set(0,2.4,-.2);backG.add(blM);
   const seamLine=new T3.Mesh(new T3.PlaneGeometry(17.2,.035),lineMat());seamLine.position.set(0,-2.05,0);backG.add(seamLine);
   const RED=new T3.Color(1,.23,.08),PAPERC=new T3.Color(.95,.94,.92);
   function tickBack(t,dt){backG.rotation.z=Math.sin(t*.03)*.02;
     RINGS.forEach((o,i)=>{o.p=Math.max(0,o.p-dt*3);const k=1+o.p*.035*(1+hype)+Math.sin(t*.4+i)*.006;o.m.scale.set(k,k,1);
       o.m.material.opacity=.16+o.p*.35*(.4+hype)+level*.1+dropFlash*.6;o.m.material.color.copy(PAPERC).lerp(RED,Math.min(1,hype*.8+dropFlash))});
-    seamM.material.opacity=.18+hype*.15+dropFlash*.5;seamLine.material.opacity=RINGS[0].m.material.opacity*.8}
+    seamM.material.opacity=.18+hype*.15+dropFlash*.5;blM.material.opacity=.17+hype*.08+beatPulse*.05+dropFlash*.3;seamLine.material.opacity=RINGS[0].m.material.opacity*.8}
   /* ---------- sound waves: thin lines across the back of the room that move with the music ---------- */
   const WP=360,WAVES=[{y:4.6,f:.42,s:1.3,b:'hi',c:0xF2F0EA},{y:2.5,f:.27,s:-.9,b:'mid',c:0xFF3B14,osc:1},{y:.5,f:.18,s:.7,b:'lo',c:0xFF3B14},{y:-1.6,f:.33,s:-1.6,b:'mid',c:0xF2F0EA},{y:-3.7,f:.22,s:1.1,b:'lo',c:0xFF3B14,osc:1},{y:-5.6,f:.5,s:-.6,b:'hi',c:0xF2F0EA}].map((w,i)=>{
     const ls=[0,.035].map(o=>{const g=new T3.BufferGeometry();const a=new Float32Array(WP*3);for(let k=0;k<WP;k++)a[k*3]=-36+72*k/(WP-1);g.setAttribute('position',new T3.BufferAttribute(a,3));
@@ -3387,7 +3429,7 @@ void main(){vec3 col=vec3(.012,.016,.034);
   function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;clock+=dt;const t=clock;
     tickAudio(t,dt);tickSlabs(t,dt);tickBack(t,dt);tickWaves(t);tickWells(t);if(t-skyT>(timeMode==='live'?5:.1)){skyT=t;updateSky()}
     // next arrival
-    if(queue.length&&t>introBusy){const q=queue.shift();retireOld();const c=makeCard(q.meta,q.fx,false);c.t0=t;c.s=freeSlot();c.k=queue.length>4?2:queue.length>1?1.4:1;introBusy=t+7.6/c.k}
+    if(queue.length&&t>introBusy){const q=queue.shift();retireOld();const c=makeCard(q.meta,q.fx,false);c.t0=t;c.s=freeSlot();c.k=queue.length>4?3.2:queue.length>1?2.6:2;introBusy=t+6.2/c.k}
     camera.position.set(Math.sin(t*.07)*.7+(Math.random()-.5)*kick*.08,Math.cos(t*.05)*.4+(Math.random()-.5)*kick*.08,11-kick*.6);camera.lookAt(0,0,0);camera.updateMatrixWorld();
     const speed=.011*(1+level*1.5+hype*1.3)+beatPulse*.004;const phys=[];
     for(let k=cards.length-1;k>=0;k--){const c=cards[k];const u=c.mat.uniforms;u.uTime.value=t;c.s+=speed*dt;
@@ -3452,6 +3494,8 @@ void main(){vec3 col=vec3(.012,.016,.034);
   let demoI=0;const DN_=['Núria','Marc','Lu','Jordi','Aina','Pol','Mia','Txell'];function demoGuest(){const g='demo'+rid(4),nk=DN_[(Math.random()*DN_.length)|0];onMsg({t:'photo',mid:rid(12),guest:g,nick:nk,img:DEMO[demoI++%DEMO.length]},()=>{});
     setTimeout(()=>onMsg({t:'react',mid:rid(12),guest:g,nick:nk,emoji:['🔥','❤️','⚡','🙌','🤯','😂'][(Math.random()*6)|0],text:Math.random()<.5?['first night!!','hola barcelona','that bass','me + the loom','SIGNAL.'][(Math.random()*5)|0]:''},()=>{}),7500)}
   $('#demoBtn').onclick=demoGuest;
+  // test drive: a demo guest every few seconds, so every effect comes past in turn
+  let driveI=0;const drive=()=>{if(driveI){clearInterval(driveI);driveI=0}else{demoGuest();driveI=setInterval(demoGuest,4200)}$('#driveBtn').classList.toggle('on',!!driveI)};$('#driveBtn').onclick=drive;
   $('#reactBtn').onclick=()=>onMsg({t:'react',mid:rid(12),guest:'x',emoji:['🔥','❤️','⚡','🙌'][(Math.random()*4)|0],text:''},()=>{});
   $('#phoneBtn').onclick=()=>window.open(location.pathname+'?join='+encodeURIComponent(wallId),'signalphone','width=420,height=860');
   $('#qrBtn').onclick=()=>{const j=$('#join');j.classList.toggle('off');$('#qrBtn').textContent=j.classList.contains('off')?'QR off':'QR on'};
@@ -3464,9 +3508,9 @@ void main(){vec3 col=vec3(.012,.016,.034);
   // restart: an empty wall, no prizes, every phone starts again with a receipt
   function restart(){if(!confirm('Restart from zero? Every photo and the prize list will be removed.'))return;
     queue.length=0;cards.slice().forEach(dispose);tags.slice().forEach(t=>t.el.remove());tags.length=0;winners=[];localStorage.removeItem('signalWinners');renderWinners();clearDB();
-    DECK.length=0;testSeen.clear();lastPhoto={};introBusy=0;toast('Wall restarted from zero')}
+    DECK.length=0;lastFx='';lastPhoto={};introBusy=0;toast('Wall restarted from zero')}
   $('#clearBtn').onclick=$('#restartBtn').onclick=restart;
-  addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;const k=e.key.toLowerCase();if(k==='f')fullscreen();else if(k==='d')demoGuest();else if(k==='b')onBeat(clock);else if(k==='x')onDrop(clock);else if(k==='r')$('#reactBtn').click();else if(k==='q')$('#qrBtn').click();else if(k==='h')document.body.classList.toggle('idle')});
+  addEventListener('keydown',e=>{if(e.target.tagName==='INPUT')return;const k=e.key.toLowerCase();if(k==='f')fullscreen();else if(k==='d')demoGuest();else if(k==='b')onBeat(clock);else if(k==='x')onDrop(clock);else if(k==='r')$('#reactBtn').click();else if(k==='t')drive();else if(k==='q')$('#qrBtn').click();else if(k==='h')document.body.classList.toggle('idle')});
   let idleT=0;const wake=()=>{document.body.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(()=>{if($('#panel').hidden)document.body.classList.add('idle')},3500)};addEventListener('mousemove',wake);addEventListener('pointerdown',wake);wake();
   // drop photos straight onto the wall
   let dragN=0;addEventListener('dragenter',e=>{e.preventDefault();dragN++;$('#drop').hidden=false});addEventListener('dragleave',()=>{if(--dragN<=0){dragN=0;$('#drop').hidden=true}});addEventListener('dragover',e=>e.preventDefault());
