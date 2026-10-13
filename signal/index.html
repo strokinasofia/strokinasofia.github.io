@@ -236,11 +236,12 @@ body.phone *{font-family:var(--display);font-weight:900}
           <li><b>✦ Receipt</b><span>1 in 100 · dinner for two</span></li>
           <li><b>Cut-out</b><span>1 in 70 · backstage +1</span></li>
           <li><b>Collage</b><span>1 in 50 · surprise gift</span></li>
+          <li><b>Coordinates</b><span>1 in 40 · free drink</span></li>
           <li><b>Inverted · Mirrored · Sketch</b><span>on the wall</span></li>
         </ul>
       </section>
       <section id="pPreview" hidden>
-        <div class="ph-p">It lands on the big screen with one of six effects. The rare ones win prizes.</div>
+        <div class="ph-p">It lands on the big screen with one of seven effects. The rare ones win prizes.</div>
         <div class="row2"><button class="pbtn" id="retake">Retake</button><button class="pbtn fill" id="sendBtn">Send to the wall</button></div>
         <img id="pPhoto" alt="" hidden>
       </section>
@@ -2646,15 +2647,17 @@ const TIERS={
   receipt:{name:'Receipt',prize:'Dinner for two',text:'Your photo came out printed on a SIGNAL. receipt. You win dinner for two at a creative, arty restaurant in Barcelona, on us.',win:true,gold:true,pin:true,toast:'✦ Receipt drawn · dinner for two ✦'},
   cutout:{name:'Cut-out',prize:'Backstage +1',text:'You got cut out of your own photo in red. You win instant backstage access for you and a friend.',win:true,pin:true,toast:'Cut-out drawn · backstage +1'},
   collage:{name:'Collage',prize:'Surprise gift',text:'Your photo got cut up into a collage. You win a small surprise gift to take home from Can Batlló.',win:true,toast:'Collage drawn · surprise gift'},
+  track:{name:'Coordinates',prize:'Free drink',text:'Little squares locked onto your photo and wrote down where they found you. You win a free drink at the bar.',win:true,toast:'Coordinates drawn · free drink'},
   invert:{name:'Inverted',prize:'On the wall',text:'Your photo flipped its tones into red. No prize this time, every new photo is a new draw.'},
   stretch:{name:'Mirrored',prize:'On the wall',text:'Your photo got stretched, mirrored and merged into three. No prize this time, every new photo is a new draw.'},
   sketch:{name:'Sketch',prize:'On the wall',text:'Your photo turned into a child\'s drawing. No prize this time, every new photo is a new draw.'}
 };
 // test day: receipts come up a lot and every prize effect really wins, so the whole flow can be tried
 let DEMO_DRAWS=localStorage.getItem('signalMode')!=='real';const DECK=[];
-function drawTier(){if(DEMO_DRAWS){if(!DECK.length){DECK.push('receipt','receipt','cutout','collage','invert','stretch','sketch');for(let i=DECK.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[DECK[i],DECK[j]]=[DECK[j],DECK[i]]}}return DECK.pop()}
+function drawTier(){if(DEMO_DRAWS){if(!DECK.length){DECK.push('receipt','receipt','receipt','cutout','collage','collage','track','track','invert','stretch');if(Math.random()<.4)DECK.push('sketch');for(let i=DECK.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[DECK[i],DECK[j]]=[DECK[j],DECK[i]]}}return DECK.pop()}
   return drawTierReal()}
-function drawTierReal(){const r=Math.random();if(r<1/100)return'receipt';if(r<1/100+1/70)return'cutout';if(r<1/100+1/70+1/50)return'collage';return['invert','stretch','sketch'][(Math.random()*3)|0]}
+// sketch is the rarest of the plain effects
+function drawTierReal(){const r=Math.random();if(r<1/100)return'receipt';if(r<1/100+1/70)return'cutout';if(r<1/100+1/70+1/50)return'collage';if(r<1/100+1/70+1/50+1/40)return'track';const q=Math.random();return q<.46?'invert':q<.92?'stretch':'sketch'}
 
 /* ---------- Scribbles: hand-drawn strokes in a unit box, drawn progressively ---------- */
 function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
@@ -2787,17 +2790,46 @@ async function renderEffect(img,tier,seed,o={}){
       const crayon=edge&&Math.sin(X*.013+s1)*Math.sin(y*.011+s2)>.35;const c=crayon?RED:[52,50,54];
       put(y*cw+X,lerp(PAPER[0],c[0],ink),lerp(PAPER[1],c[1],ink),lerp(PAPER[2],c[2],ink))}
     x.putImageData(od,0,0)}
+  else if(tier==='track'){
+    // coordinates: the photo in hard black and white, little squares lock onto the busiest points, joined up and labelled where they sit
+    for(let i=0;i<N;i++){const v=smooth(.22,.78,L[i])*255;put(i,v,v,v)}x.putImageData(od,0,0);
+    const g=Math.max(8,(cw/26)|0),pts=[];
+    for(let cy=0;cy+g<=ch;cy+=g)for(let cx=0;cx+g<=cw;cx+=g){let m=0,m2=0,n=0;for(let yy=cy;yy<cy+g;yy+=2)for(let xx=cx;xx<cx+g;xx+=2){const v=L[yy*cw+xx];m+=v;m2+=v*v;n++}m/=n;pts.push({x:cx+g/2,y:cy+g/2,s:m2/n-m*m+R()*.004})}
+    pts.sort((a,b)=>b.s-a.s);const P=[],NP=22+(R()*16|0);for(const p of pts){if(P.length>=NP)break;if(P.every(q=>Math.hypot(q.x-p.x,q.y-p.y)>g*2.1))P.push(p)}
+    // lines and boxes print in difference, so they show on white skin and black hair alike
+    const lw=Math.max(1.3,cw/360);x.lineWidth=lw;x.strokeStyle='#fff';x.globalCompositeOperation='difference';
+    // each point joins its two nearest neighbours
+    const done=new Set();P.forEach((p,i)=>{P.map((q,j)=>[j,Math.hypot(q.x-p.x,q.y-p.y)]).filter(a=>a[0]!==i).sort((a,b)=>a[1]-b[1]).slice(0,2).forEach(([j])=>{const k=i<j?i+'-'+j:j+'-'+i;if(done.has(k))return;done.add(k);
+      x.beginPath();x.moveTo(p.x,p.y);x.lineTo(P[j].x,P[j].y);x.stroke()})});
+    x.globalCompositeOperation='source-over';
+    const fs=Math.max(9,cw/62);x.font=`700 ${fs}px "Courier New",Courier,monospace`;x.textBaseline='top';
+    P.forEach((p,i)=>{const sz=g*(.7+R()*1.7),x0=p.x-sz/2,y0=p.y-sz/2,k=R();
+      if(k<.28){const t=mkCv(5,5);t.getContext('2d').drawImage(out,x0,y0,sz,sz,0,0,5,5);x.imageSmoothingEnabled=false;x.drawImage(t,x0,y0,sz,sz);x.imageSmoothingEnabled=true}
+      else if(k<.5){x.globalCompositeOperation='difference';x.fillStyle='#fff';x.fillRect(x0,y0,sz,sz);x.globalCompositeOperation='source-over'}
+      x.globalCompositeOperation='difference';x.strokeStyle='#fff';x.strokeRect(x0,y0,sz,sz);x.fillStyle='#fff';x.fillRect(p.x-lw*1.5,p.y-lw*1.5,lw*3,lw*3);x.globalCompositeOperation='source-over';
+      const lb=R()<.5?`X${p.x|0} Y${p.y|0}`:`${(p.x/cw).toFixed(3)}, ${(p.y/ch).toFixed(3)}`;const tw=x.measureText(lb).width;const lx=clamp(x0,2,cw-tw-6),ly=y0+sz+3>ch-fs-4?y0-fs-5:y0+sz+3;
+      x.fillStyle='#000';x.fillRect(lx,ly,tw+4,fs+2);x.fillStyle='#fff';x.fillText(lb,lx+2,ly+1);if(i<3){x.fillText('#'+String(i+1).padStart(2,'0'),x0+2,y0+2)}});
+    x.fillStyle='#000';x.fillRect(0,0,cw,fs*2.2);x.fillStyle='#fff';x.textAlign='left';x.fillText('TRACKING · '+P.length+' POINTS · '+cw+'×'+ch,fs*.6,fs*.6)}
   else{
     grey();const g=mkCv(cw,ch);g.getContext('2d').putImageData(od,0,0);
     if(tier==='collage'){
       x.fillStyle=`rgb(${PAPER})`;x.fillRect(0,0,cw,ch);
-      if(R()<.5){// squares cut out and put back slightly wrong
+      const cm=R();
+      if(cm<.45){// squares cut out and put back slightly wrong
         const cols=3+(R()*2|0),rows=Math.round(cols*ch/cw)+(R()<.5?0:1),tw=cw/cols,th=ch/rows;const cells=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)cells.push([c,r]);
         const order=cells.map(c=>c.slice());for(let i=0;i<order.length;i++)if(R()<.3){const j=(R()*order.length)|0;[order[i],order[j]]=[order[j],order[i]]}
         cells.forEach(([c,r],i)=>{if(R()<.07)return;const [sc,sr]=order[i];const jx=(R()-.5)*tw*.14,jy=(R()-.5)*th*.14,rot=(R()-.5)*.09;
           x.save();x.translate(c*tw+tw/2+jx,r*th+th/2+jy);x.rotate(rot);x.fillStyle='rgba(0,0,0,.28)';x.fillRect(-tw/2+4,-th/2+5,tw*.96,th*.96);
           x.fillStyle='#fff';x.fillRect(-tw/2-2,-th/2-2,tw*.96+4,th*.96+4);x.drawImage(g,sc*tw,sr*th,tw*.96,th*.96,-tw/2,-th/2,tw*.96,th*.96);
           if(R()<.08){x.globalCompositeOperation='multiply';x.fillStyle=`rgb(${RED})`;x.fillRect(-tw/2,-th/2,tw*.96,th*.96);x.globalCompositeOperation='source-over'}x.restore()})}
+      else if(cm<.87){// bits of the photo torn out in blobs and stuck back together, overlapping
+        const n=10+(R()*8|0),mn=Math.min(cw,ch);
+        for(let i=0;i<n;i++){const sx_=cw*(.15+R()*.7),sy_=ch*(.15+R()*.7),r=mn*(.11+R()*.17),tx=cw*.5+(R()-.5)*cw*.62,ty=ch*.5+(R()-.5)*ch*.66,rot=(R()-.5)*.7,sc=.85+R()*.45,k=2+(R()*3|0),ph=R()*6;
+          const pts=[];for(let j=0;j<32;j++){const a=j/32*Math.PI*2;const rr=r*(1+.22*Math.sin(a*k+ph)+.1*Math.sin(a*7+ph*2)+(R()-.5)*.08);pts.push([Math.cos(a)*rr,Math.sin(a)*rr])}
+          const path=m=>{x.beginPath();pts.forEach(([a,b],j)=>j?x.lineTo(a*m,b*m):x.moveTo(a*m,b*m));x.closePath()};
+          x.save();x.translate(tx,ty);x.rotate(rot);x.scale(sc,sc);
+          x.shadowColor='rgba(0,0,0,.4)';x.shadowBlur=mn/60;x.shadowOffsetX=mn/140;x.shadowOffsetY=mn/90;path(1.06);x.fillStyle='#fff';x.fill();x.shadowColor='transparent';
+          path(1);x.clip();x.drawImage(g,-sx_,-sy_);if(R()<.12){x.globalCompositeOperation='multiply';x.fillStyle=`rgb(${RED})`;x.fillRect(-r*2,-r*2,r*4,r*4)}x.restore()}}
       else{// strips sliced and shifted, some flipped, like a misprinted face
         let X=0;while(X<cw){const w=cw*(.08+R()*.22),dy=(R()-.5)*ch*.22,fl=R()<.3;x.save();x.beginPath();x.rect(X,0,w,ch);x.clip();
           if(fl){x.translate(2*X+w,0);x.scale(-1,1)}x.drawImage(g,0,dy);if(dy>0)x.drawImage(g,0,dy-ch);else x.drawImage(g,0,dy+ch);x.restore();
@@ -2826,12 +2858,12 @@ async function renderEffect(img,tier,seed,o={}){
       x.font=mono(u*2.6);x.fillText('CAN BATLLÓ · BARCELONA',cw/2,y);y+=u*3.4;const d=new Date();x.fillText(d.toLocaleDateString('en-GB')+'  '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),cw/2,y);y+=u*2.6;
       const dash=()=>{x.textAlign='center';x.fillText('- - - - - - - - - - - - - - - - - -',cw/2,y);y+=u*3.2};dash();
       // the photo itself, dithered like a thermal printer
-      const pw=rw-u*8,ph=Math.min(pw*1.05,rh*.5),px=L1,py=y-u*1.2;const pc=mkCv(Math.round(pw/1.5),Math.round(ph/1.5)),pxc=pc.getContext('2d');
+      const pw=rw-u*8,ph=Math.min(pw*1.15,rh*.56),px=L1,py=y-u*1.2;const pc=mkCv(Math.round(pw),Math.round(ph)),pxc=pc.getContext('2d');
       const s2=Math.max(pc.width/cw,pc.height/ch);pxc.drawImage(g,(pc.width-cw*s2)/2,(pc.height-ch*s2)/2,cw*s2,ch*s2);const pd=pxc.getImageData(0,0,pc.width,pc.height);
       const E=new Float32Array(pc.width*pc.height);for(let i=0;i<E.length;i++)E[i]=pd.data[i*4]/255;
       for(let yy=0;yy<pc.height;yy++)for(let xx=0;xx<pc.width;xx++){const i=yy*pc.width+xx,o=E[i],n=o<.5?0:1,e=o-n;E[i]=n;
         if(xx+1<pc.width)E[i+1]+=e*7/16;if(yy+1<pc.height){if(xx>0)E[i+pc.width-1]+=e*3/16;E[i+pc.width]+=e*5/16;if(xx+1<pc.width)E[i+pc.width+1]+=e/16}
-        const v=n?236:42;pd.data[i*4]=v;pd.data[i*4+1]=v-2;pd.data[i*4+2]=v-6}
+        const v=lerp(n?236:42,42+clamp(o,0,1)*194,.6);pd.data[i*4]=v;pd.data[i*4+1]=v-2;pd.data[i*4+2]=v-6}
       pxc.putImageData(pd,0,0);x.imageSmoothingEnabled=false;x.drawImage(pc,px,py,pw,ph);x.imageSmoothingEnabled=true;y=py+ph+u*4.4;dash();
       const row=(a,b)=>{x.textAlign='left';x.fillText(a,L1,y);x.textAlign='right';x.fillText(b,R1,y);y+=u*3.3};
       x.font=mono(u*2.7);row('GUEST',(o.nick||'GUEST').toUpperCase().slice(0,16));row('1 × PHOTO','0,00');row('EFFECT','RECEIPT');row('PRIZE','DINNER FOR 2');dash();
@@ -2908,7 +2940,7 @@ function initPhone(){
     peer.on('disconnected',()=>setTimeout(()=>{try{peer.reconnect()}catch(_){}},2000))}
   if(bc){bc.onmessage=e=>{const d=e.data;if(d&&d.from==='wall'&&d.to===guest)onWall(d)};bc.postMessage({t:'hello',from:'phone',guest,wall:JOIN,mid:rid(12)})}
   setTimeout(()=>{if(!welcomed)setSt('Searching for screen…')},8000);
-  let lastErr='';const diag=()=>{$('#pDiag').textContent='v9 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(nt.up?'on':'off')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
+  let lastErr='';const diag=()=>{$('#pDiag').textContent='v10 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(nt.up?'on':'off')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
   setInterval(()=>{if(!welcomed)send({t:'hello'})},5000);
 
   function onWall(d){if(!d||!d.t)return;const k=d.t+(d.mid||'')+(d.rmid||'');if(seen.has(k)&&d.t!=='welcome')return;seen.add(k);
@@ -2988,7 +3020,7 @@ function initWall(){
   let rl=null,nt=null;
   function replyRelays(d,r){if(!d||!d.guest)return;if(rl)rl.pub('sgnl/'+wallId+'/out/'+d.guest,r);if(nt&&nt.up&&r.t!=='got')ntfyPub(ntOut(wallId,d.guest),r)}
   function startRelay(){rl=relay(['sgnl/'+wallId+'/in'],d=>onMsg(d,r=>replyRelays(d,r)),netLabel);nt=ntfySub(ntIn(wallId),d=>onMsg(d,r=>replyRelays(d,r)),netLabel)}
-  function netLabel(){const p=peer&&peer.open,r=rl&&rl.up,w=nt&&nt.up;net.textContent=((p||r||w)?'● Live · phones can join':'Connecting…')+' · v9 direct '+(p?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(w?'on':'off')}
+  function netLabel(){const p=peer&&peer.open,r=rl&&rl.up,w=nt&&nt.up;net.textContent=((p||r||w)?'● Live · phones can join':'Connecting…')+' · v10 direct '+(p?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(w?'on':'off')}
   setInterval(netLabel,2000);
   startRelay();
   if(bc)bc.onmessage=e=>{const d=e.data;if(d&&d.from==='phone'&&d.wall===wallId)onMsg(d,r=>bc.postMessage(Object.assign(r,{from:'wall',to:d.guest})))};
@@ -3021,7 +3053,7 @@ function initWall(){
   // phones always need an online copy: when the wall runs from a local file, the QR points at the hosted one
   const HOSTED='https://strokinasofia.github.io/signal/';
   const isOnline=/^https:$/.test(location.protocol);
-  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v9'}
+  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v10'}
   function drawQR(){const url=joinURL();const q=qrcode(0,'M');q.addData(url);q.make();const n=q.getModuleCount(),cell=8,pad=2;const c=$('#qr');c.width=c.height=(n+pad*2)*cell;const x=c.getContext('2d');
     x.fillStyle='#F2F0EA';x.fillRect(0,0,c.width,c.height);x.fillStyle='#101010';for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect((k+pad)*cell,(r+pad)*cell,cell,cell);
     $('#qrWarn').hidden=true}
@@ -3100,8 +3132,8 @@ void main(){
   const markTex=loadTex(MARK_RED);const paperTex=loadTex(PAPER);
   // corner tag: the melted SIGNAL. wordmark on a small ink tab, clipped flush to one corner
   const stampCv=document.createElement('canvas');stampCv.width=360;stampCv.height=150;const stampTex=new T3.CanvasTexture(stampCv);
-  function drawStamp(){const x=stampCv.getContext('2d');x.fillStyle='#101010';x.fillRect(0,0,360,150);
-    const im=new Image();im.onload=()=>{const w=300,h=w*im.height/im.width;x.drawImage(im,30,(150-h)/2+8,w,h);stampTex.needsUpdate=true};im.src=LOGO_SM}
+  function drawStamp(){const x=stampCv.getContext('2d');x.clearRect(0,0,360,150);
+    const im=new Image();im.onload=()=>{const w=300,h=w*im.height/im.width;x.drawImage(im,30,(150-h)/2+8,w,h);x.globalCompositeOperation='source-in';x.fillStyle='#FF3B14';x.fillRect(0,0,360,150);x.globalCompositeOperation='source-over';stampTex.needsUpdate=true};im.src=LOGO_SM}
   (document.fonts?document.fonts.ready:Promise.resolve()).then(drawStamp);
   // the guest's nickname as a sharp mask plus two soft fields the ink bleeds along
   function nickTex(nick,cw,ch){
@@ -3123,16 +3155,20 @@ void main(){
   const SV='varying vec2 vUv;varying vec3 vN;void main(){vUv=uv;vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}';
   const SF=`precision highp float;varying vec2 vUv;varying vec3 vN;uniform vec3 uA,uB;uniform float uT,uBeat,uPh,uLA,uDim,uLogoOn,uHot;uniform vec3 uSize;uniform sampler2D uLogo;
 void main(){
- // round red columns: lit from the front, glowing hot along the rim, running up out of the frame
- float y=vUv.y*uSize.y;float face=clamp(vN.z,0.,1.);float rim=pow(1.-abs(vN.z),2.2);
- vec3 c=mix(uA,uB,smoothstep(0.,1.,(y-1.)/12.+.08*sin(uT*.4+uPh)));
- c*=.38+.78*pow(face,.8);c=mix(c,vec3(1.,.82,.76),pow(face,6.)*.18);
- c*=.93+.07*sin(y*1.4-uT*1.4+uPh);
- // the vertical SIG/NAL logo, twice round each column, drifting upwards
+ // glossy red lacquer columns: a key light from the front left, a deep shadow side, softbox reflections and a sharp highlight on top
+ vec3 n=normalize(vN);float y=vUv.y*uSize.y;
+ vec3 Lk=normalize(vec3(-.55,0.,.83));float dif=max(dot(n,Lk),0.);float wrap=max(dot(n,Lk)*.5+.5,0.);
+ vec3 base=mix(uA,uB,smoothstep(0.,1.,(y-1.)/12.+.08*sin(uT*.4+uPh)));
+ vec3 c=base*(.05+.35*wrap*wrap+.85*pow(dif,1.6));
+ c+=(1.-wrap)*vec3(.02,.03,.08);
+ // the vertical SIG/NAL logo printed under the gloss in paper white, twice round each column, drifting upwards
  if(uLogoOn>.5){float circ=6.2832*uSize.x;float fw=circ*.5;float lw=.36;float lx=(fract(vUv.x*2.+.5)-.5)/lw+.5;float lh=fw*lw/uLA;float per=lh*2.3;float ly=fract(y/per-uT*.05-uPh)*2.3;
-  float a=(ly<1.&&lx>0.&&lx<1.)?texture2D(uLogo,vec2(lx,ly)).a:0.;c=mix(c,c*.16,a*.92*smoothstep(0.,.35,face));}
- c=c*(1.+uBeat*1.25)+uBeat*.28*vec3(1.,.88,.85)+uHot*vec3(1.,.93,.88);
- c+=rim*vec3(1.,.5,.4)*(.45+uBeat*.6+uHot);
+  float a=(ly<1.&&lx>0.&&lx<1.)?texture2D(uLogo,vec2(lx,ly)).a:0.;c=mix(c,vec3(.95,.93,.88)*(.06+.3*wrap*wrap+.75*pow(dif,1.3)),a*.95);}
+ c=c*(1.+uBeat*1.1)+uBeat*.18*base*wrap+uHot*vec3(1.,.9,.85)*.7*wrap;
+ vec3 H=normalize(Lk+vec3(0.,0.,1.));float sp=pow(max(dot(n,H),0.),140.)*1.6;
+ float st=exp(-pow((n.x+.36)/.05,2.))*.55+exp(-pow((n.x-.62)/.04,2.))*.3;st*=.8+.2*sin(y*.21+uT*.3+uPh);
+ float fr=pow(1.-max(n.z,0.),5.);
+ c+=(sp+st)*vec3(1.,.96,.93)*(1.+uBeat*.6+uHot)+fr*vec3(1.,.3,.2)*(.25+uBeat*.3);
  gl_FragColor=vec4(c*uDim,1.);}`;
   const GF=`varying vec2 vUv;uniform vec3 uC;uniform float uI;void main(){vec2 p=(vUv-.5)*2.;float a=exp(-p.x*p.x*5.)*smoothstep(1.,.25,abs(p.y));gl_FragColor=vec4(uC*a*uI,1.);}`;
   const FV='varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}';
