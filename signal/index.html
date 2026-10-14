@@ -3023,7 +3023,7 @@ function initPhone(){
     peer.on('disconnected',()=>setTimeout(()=>{try{peer.reconnect()}catch(_){}},2000))}
   if(bc){bc.onmessage=e=>{const d=e.data;if(d&&d.from==='wall'&&d.to===guest)onWall(d)};bc.postMessage({t:'hello',from:'phone',guest,wall:JOIN,mid:rid(12)})}
   setTimeout(()=>{if(!welcomed)setSt('Searching for screen…')},8000);
-  let lastErr='';const diag=()=>{$('#pDiag').textContent='v14 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(nt.up?'on':'off')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
+  let lastErr='';const diag=()=>{$('#pDiag').textContent='v15 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(nt.up?'on':'off')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
   setInterval(()=>{if(!welcomed)send({t:'hello'})},5000);
 
   function onWall(d){if(!d||!d.t)return;const k=d.t+(d.mid||'')+(d.rmid||'');if(seen.has(k)&&d.t!=='welcome')return;seen.add(k);
@@ -3137,7 +3137,7 @@ function initWall(){
   // phones always need an online copy: when the wall runs from a local file, the QR points at the hosted one
   const HOSTED='https://strokinasofia.github.io/signal/';
   const isOnline=/^https:$/.test(location.protocol);
-  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v14'}
+  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v15'}
   function drawQR(){const url=joinURL();const q=qrcode(0,'M');q.addData(url);q.make();const n=q.getModuleCount(),cell=8,pad=2;const c=$('#qr');c.width=c.height=(n+pad*2)*cell;const x=c.getContext('2d');
     x.fillStyle='#F2F0EA';x.fillRect(0,0,c.width,c.height);x.fillStyle='#101010';for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect((k+pad)*cell,(r+pad)*cell,cell,cell);
     $('#qrWarn').hidden=true}
@@ -3365,9 +3365,10 @@ void main(){vec3 col=vec3(.012,.016,.034);
   const LINE_Y=4.25,LINE_Z=-7;let STR=null;
   {const str=new T3.Mesh(new T3.PlaneGeometry(40,.014),new T3.MeshBasicMaterial({color:0xF2F0EA,transparent:true,opacity:.45,depthWrite:false}));str.position.set(0,LINE_Y+.01,LINE_Z)}
   // winners hang in rows from the top-left corner: left to right, then the next row down
-  const COLS=4,ROWS=3;for(let i=0;i<COLS*ROWS;i++){const piv=new T3.Object3D();scene.add(piv);SLOTS.push({sl:{w:1.7,z:LINE_Z},piv,card:null,ph:Math.random()*6,y:0,x:0})}
-  function placeSlots(){const hh=Math.tan(19*Math.PI/180)*(11-LINE_Z),hw=hh*camera.aspect,pw=1.7*.86,gx=pw+.3,gy=pw*1.4+.3,x0=-hw+.6+pw/2,y0=hh-1.05;
-    SLOTS.forEach((s,i)=>{s.x=x0+(i%COLS)*gx;s.piv.position.set(s.x,y0-Math.floor(i/COLS)*gy,LINE_Z)})}
+  const COLS=4,ROWS=3,PIN_Z=2.2;for(let i=0;i<COLS*ROWS;i++){const piv=new T3.Object3D();scene.add(piv);SLOTS.push({sl:{w:.86,z:PIN_Z},piv,card:null,ph:Math.random()*6,y:0,x:0})}
+  // pinned in front of the flowing photos so a busy wall never covers the winners
+  function placeSlots(){const hh=Math.tan(19*Math.PI/180)*(11-PIN_Z),hw=hh*camera.aspect,pw=.86*.86,gx=pw+.16,gy=pw*1.4+.16,x0=-hw+.32+pw/2,y0=hh-.55;
+    SLOTS.forEach((s,i)=>{s.x=x0+(i%COLS)*gx;s.piv.position.set(s.x,y0-Math.floor(i/COLS)*gy,PIN_Z)})}
   placeSlots();addEventListener('resize',placeSlots);
   const tapeMat=new T3.MeshBasicMaterial({color:0xE6E0D0,transparent:true,opacity:.86});
   const _m=new T3.Matrix4(),_q=new T3.Quaternion(),_ps=new T3.Vector3(),_sc=new T3.Vector3();
@@ -3378,7 +3379,7 @@ void main(){vec3 col=vec3(.012,.016,.034);
     if(!slot){slot=SLOTS.slice().sort((a,b)=>a.card.meta.time-b.card.meta.time)[0];const old=slot.card;old.meta.pin=false;saveDB(old.meta);dispose(old)}
     slot.card=c;c.slot=slot;if(instant)attachPin(c);else{c.state='pinfly';c.t0=clock;c.from={p:c.mesh.position.clone(),q:c.mesh.quaternion.clone(),s:c.mesh.scale.clone()}}return true}
   function attachPin(c){const sl=c.slot;const[pw,ph_]=pinSize(sl.sl,c);sl.piv.add(c.mesh);c.mesh.position.set(0,-ph_/2,.005);c.mesh.quaternion.identity();c.mesh.scale.set(pw,ph_,1);
-    const tape=new T3.Mesh(new T3.PlaneGeometry(pw*.42,.16),tapeMat);tape.position.set(0,-.02,.012);tape.rotation.z=(Math.random()-.5)*.12;sl.piv.add(tape);c.tape=tape;
+    const tape=new T3.Mesh(new T3.PlaneGeometry(pw*.42,pw*.12),tapeMat);tape.position.set(0,-.02,.012);tape.rotation.z=(Math.random()-.5)*.12;sl.piv.add(tape);c.tape=tape;
     c.state='pinned';c.mat.uniforms.uOpacity.value=1;c.sm.visible=true;c.sm.material.opacity=1}
   function freeSlot(){const ss=cards.filter(c=>c.state==='flow').map(c=>((c.s%1)+1)%1).sort((a,b)=>a-b);if(!ss.length)return.5;let best=0,bs=0;
     for(let i=0;i<ss.length;i++){const a=ss[i],b=i+1<ss.length?ss[i+1]:ss[0]+1;if(b-a>best){best=b-a;bs=a+(b-a)/2}}return bs%1}
