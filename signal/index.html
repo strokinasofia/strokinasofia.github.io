@@ -3023,7 +3023,7 @@ function initPhone(){
     peer.on('disconnected',()=>setTimeout(()=>{try{peer.reconnect()}catch(_){}},2000))}
   if(bc){bc.onmessage=e=>{const d=e.data;if(d&&d.from==='wall'&&d.to===guest)onWall(d)};bc.postMessage({t:'hello',from:'phone',guest,wall:JOIN,mid:rid(12)})}
   setTimeout(()=>{if(!welcomed)setSt('Searching for screen…')},8000);
-  let lastErr='';const diag=()=>{$('#pDiag').textContent='v13 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(nt.up?'on':'off')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
+  let lastErr='';const diag=()=>{$('#pDiag').textContent='v14 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(nt.up?'on':'off')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
   setInterval(()=>{if(!welcomed)send({t:'hello'})},5000);
 
   function onWall(d){if(!d||!d.t)return;const k=d.t+(d.mid||'')+(d.rmid||'');if(seen.has(k)&&d.t!=='welcome')return;seen.add(k);
@@ -3137,7 +3137,7 @@ function initWall(){
   // phones always need an online copy: when the wall runs from a local file, the QR points at the hosted one
   const HOSTED='https://strokinasofia.github.io/signal/';
   const isOnline=/^https:$/.test(location.protocol);
-  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v13'}
+  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v14'}
   function drawQR(){const url=joinURL();const q=qrcode(0,'M');q.addData(url);q.make();const n=q.getModuleCount(),cell=8,pad=2;const c=$('#qr');c.width=c.height=(n+pad*2)*cell;const x=c.getContext('2d');
     x.fillStyle='#F2F0EA';x.fillRect(0,0,c.width,c.height);x.fillStyle='#101010';for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect((k+pad)*cell,(r+pad)*cell,cell,cell);
     $('#qrWarn').hidden=true}
@@ -3363,8 +3363,12 @@ void main(){vec3 col=vec3(.012,.016,.034);
   /* ---------- prize line: the rarest effects get taped to one thin line across the top of the room ---------- */
   const SLOTS=[];
   const LINE_Y=4.25,LINE_Z=-7;let STR=null;
-  {const str=new T3.Mesh(new T3.PlaneGeometry(40,.014),new T3.MeshBasicMaterial({color:0xF2F0EA,transparent:true,opacity:.45,depthWrite:false}));str.position.set(0,LINE_Y+.01,LINE_Z);scene.add(str);STR=str}
-  [-3.4,3.4,-5.0,5.0,-6.6,6.6,-8.2,8.2].forEach(x=>{const piv=new T3.Object3D();piv.position.set(x,LINE_Y,LINE_Z);scene.add(piv);SLOTS.push({sl:{w:1.3,z:LINE_Z},piv,card:null,ph:Math.random()*6,y:0,x})});
+  {const str=new T3.Mesh(new T3.PlaneGeometry(40,.014),new T3.MeshBasicMaterial({color:0xF2F0EA,transparent:true,opacity:.45,depthWrite:false}));str.position.set(0,LINE_Y+.01,LINE_Z)}
+  // winners hang in rows from the top-left corner: left to right, then the next row down
+  const COLS=4,ROWS=3;for(let i=0;i<COLS*ROWS;i++){const piv=new T3.Object3D();scene.add(piv);SLOTS.push({sl:{w:1.7,z:LINE_Z},piv,card:null,ph:Math.random()*6,y:0,x:0})}
+  function placeSlots(){const hh=Math.tan(19*Math.PI/180)*(11-LINE_Z),hw=hh*camera.aspect,pw=1.7*.86,gx=pw+.3,gy=pw*1.4+.3,x0=-hw+.6+pw/2,y0=hh-1.05;
+    SLOTS.forEach((s,i)=>{s.x=x0+(i%COLS)*gx;s.piv.position.set(s.x,y0-Math.floor(i/COLS)*gy,LINE_Z)})}
+  placeSlots();addEventListener('resize',placeSlots);
   const tapeMat=new T3.MeshBasicMaterial({color:0xE6E0D0,transparent:true,opacity:.86});
   const _m=new T3.Matrix4(),_q=new T3.Quaternion(),_ps=new T3.Vector3(),_sc=new T3.Vector3();
   function pinSize(sl,c){const pw=sl.w*.86;return[pw,pw*c.h/c.w]}
@@ -3581,7 +3585,7 @@ void main(){vec3 col=vec3(.012,.016,.034);
   let dragN=0;addEventListener('dragenter',e=>{e.preventDefault();dragN++;$('#drop').hidden=false});addEventListener('dragleave',()=>{if(--dragN<=0){dragN=0;$('#drop').hidden=true}});addEventListener('dragover',e=>e.preventDefault());
   addEventListener('drop',async e=>{e.preventDefault();dragN=0;$('#drop').hidden=true;for(const f of e.dataTransfer.files)if(f.type.startsWith('image/')){const d=await shrink(f,1000,.8);onMsg({t:'photo',mid:rid(12),guest:'drop'+rid(4),nick:f.name.replace(/\.[^.]+$/,'').slice(0,16),img:d},()=>{})}});
 
-  resize();updateSky();
+  resize();placeSlots();updateSky();
   openDB().then(loadDB).then(rows=>{rows.sort((a,b)=>a.time-b.time);rows.filter(m=>m.pin).slice(-SLOTS.length).forEach(m=>addPhoto(m,false));rows.filter(m=>!m.pin).slice(-MAX).forEach((m,i,arr)=>{m._s=(i+.5)/arr.length;addPhoto(m,false)})});
   window.__sig=()=>({clock,n:cards.length,states:cards.map(c=>c.state+':'+c.s.toFixed(2)),q:queue.length,tags:tags.length});
   requestAnimationFrame(frame);
