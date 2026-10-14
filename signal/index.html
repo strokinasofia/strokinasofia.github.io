@@ -41,12 +41,12 @@ body.wall.idle{cursor:none}
 .tag.solo .em{font-size:44px}
 
 .top{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
-  padding:calc(16px + env(safe-area-inset-top,0px)) 20px 0;pointer-events:none;mix-blend-mode:difference;color:#fff;transition:opacity .6s}
+  padding:calc(16px + env(safe-area-inset-top,0px)) 20px 0;pointer-events:none;color:var(--fg,#101010);transition:opacity .6s,color 2s}
 .top .l{display:flex;flex-direction:column;gap:6px}
 .top .r{text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
-#fsTop{pointer-events:auto;background:none;border:1px solid rgba(255,255,255,.7);padding:9px 12px;color:#fff}
-#fsTop:hover{background:#fff;color:#000}
-#empty{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;mix-blend-mode:difference;color:#fff;transition:opacity 1s}
+#fsTop{pointer-events:auto;background:none;border:1px solid currentColor;padding:9px 12px;color:inherit}
+#fsTop:hover{background:var(--fg,#101010);color:var(--bgc,#F4D9B0)}
+#empty{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;color:var(--fg,#101010);transition:opacity 1s,color 2s}
 #empty h1{font-weight:900;font-size:clamp(34px,6vw,96px);letter-spacing:-.04em;line-height:.9;margin:0 0 14px}
 
 #join{position:fixed;right:20px;bottom:20px;display:flex;gap:14px;align-items:flex-end;padding:12px;background:var(--paper);color:var(--ink);transition:opacity .6s,transform .6s}
@@ -197,7 +197,7 @@ body.phone *{font-family:var(--display);font-weight:900}
       <button class="btn" id="waveBtn" title="B">Beat</button><button class="btn" id="dropBtn" title="X">Drop</button><span class="pix lbl" id="energy">Energy 0%</span></div>
     <div class="group"><span class="pix lbl">Sky</span>
       <button class="btn on" id="timeLive">Live</button><button class="btn" id="timeScrub">14.09.28</button>
-      <input type="range" id="timeSlider" min="1020" max="1440" step="1" value="1200" hidden><span class="pix" id="timeVal" hidden></span></div>
+      <input type="range" id="timeSlider" min="360" max="1440" step="1" value="1170" hidden><span class="pix" id="timeVal" hidden></span></div>
     <div class="group"><span class="pix lbl">Test</span>
       <button class="btn" id="demoBtn" title="D">Demo guest</button><button class="btn" id="driveBtn" title="T">Test drive</button><button class="btn" id="phoneBtn">Open test phone</button><button class="btn" id="reactBtn" title="R">Reaction</button></div>
     <div class="group"><span class="pix lbl">Mode</span><button class="btn" id="drawsBtn"></button></div>
@@ -3023,7 +3023,7 @@ function initPhone(){
     peer.on('disconnected',()=>setTimeout(()=>{try{peer.reconnect()}catch(_){}},2000))}
   if(bc){bc.onmessage=e=>{const d=e.data;if(d&&d.from==='wall'&&d.to===guest)onWall(d)};bc.postMessage({t:'hello',from:'phone',guest,wall:JOIN,mid:rid(12)})}
   setTimeout(()=>{if(!welcomed)setSt('Searching for screen…')},8000);
-  let lastErr='';const diag=()=>{$('#pDiag').textContent='v12 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(nt.up?'on':'off')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
+  let lastErr='';const diag=()=>{$('#pDiag').textContent='v13 · direct '+(conn&&conn.open?'on':'off')+' · relay '+(rl?rl.up+'/'+rl.clients.length:'none')+' · web '+(nt.up?'on':'off')+' · screen '+(welcomed?'yes':'no')+(lastErr?' · '+lastErr:'')};setInterval(diag,1000);
   setInterval(()=>{if(!welcomed)send({t:'hello'})},5000);
 
   function onWall(d){if(!d||!d.t)return;const k=d.t+(d.mid||'')+(d.rmid||'');if(seen.has(k)&&d.t!=='welcome')return;seen.add(k);
@@ -3137,7 +3137,7 @@ function initWall(){
   // phones always need an online copy: when the wall runs from a local file, the QR points at the hosted one
   const HOSTED='https://strokinasofia.github.io/signal/';
   const isOnline=/^https:$/.test(location.protocol);
-  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v12'}
+  function joinURL(){const base=params.get('public')||(isOnline?location.origin+location.pathname:HOSTED);return base+'?join='+encodeURIComponent(wallId)+'&v=v13'}
   function drawQR(){const url=joinURL();const q=qrcode(0,'M');q.addData(url);q.make();const n=q.getModuleCount(),cell=8,pad=2;const c=$('#qr');c.width=c.height=(n+pad*2)*cell;const x=c.getContext('2d');
     x.fillStyle='#F2F0EA';x.fillRect(0,0,c.width,c.height);x.fillStyle='#101010';for(let r=0;r<n;r++)for(let k=0;k<n;k++)if(q.isDark(r,k))x.fillRect((k+pad)*cell,(r+pad)*cell,cell,cell);
     $('#qrWarn').hidden=true}
@@ -3145,7 +3145,7 @@ function initWall(){
 
   /* ---------- three ---------- */
   const canvas=$('#gl');const renderer=new T3.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
-  renderer.setClearColor(0x070811,1);renderer.outputColorSpace=T3.LinearSRGBColorSpace;
+  renderer.setClearColor(0xF4DDB8,1);renderer.outputColorSpace=T3.LinearSRGBColorSpace;
   const scene=new T3.Scene();const camera=new T3.PerspectiveCamera(38,1,.1,140);camera.position.set(0,0,11);
   // the room: a dark navy gradient that shifts a little with the real sun
   const bgCv=document.createElement('canvas');bgCv.width=1024;bgCv.height=640;const tonerIm=new Image();tonerIm.onload=()=>updateSky();tonerIm.src=TONER;const bgTex=new T3.CanvasTexture(bgCv);scene.background=bgTex;
@@ -3288,7 +3288,7 @@ void main(){vec3 col=vec3(.012,.016,.034);
   {const im=new Image();im.onload=()=>{logoTex.image=im;logoTex.needsUpdate=true;logoA=im.width/im.height;slabs.forEach(s=>s.mat.uniforms.uLA.value=logoA)};im.src=VLOGO}
   const repTex=src=>{const t=loadTex(src);t.wrapS=t.wrapT=T3.RepeatWrapping;return t};
   const floorMat=new T3.ShaderMaterial({uniforms:{uToner:{value:repTex(TONER)},uWorn:{value:repTex(WORN)},uP:{value:slabs.map(()=>new T3.Vector4())},uC:{value:slabs.map(()=>new T3.Vector3())}},vertexShader:FV,fragmentShader:FF});
-  const floor=new T3.Mesh(new T3.PlaneGeometry(90,80),floorMat);floor.rotation.x=-Math.PI/2;floor.position.set(0,FLOOR,-24);scene.add(floor);
+  const floor=new T3.Mesh(new T3.PlaneGeometry(90,80),floorMat);floor.rotation.x=-Math.PI/2;floor.position.set(0,FLOOR,-24);
   function placeSlabs(){const tn=Math.tan(19*Math.PI/180)*camera.aspect;
     slabs.forEach(s=>{const hw=(11-s.z)*tn;const x=s.side*(s.z>-5?Math.max(5,hw*.9):hw*.6);
       s.mesh.position.set(x,FLOOR+s.H/2,s.z);s.mesh.rotation.y=Math.atan2(-x,11-s.z);s.pos.set(x,0,s.z)})}
@@ -3299,7 +3299,7 @@ void main(){vec3 col=vec3(.012,.016,.034);
     floorMat.uniforms.uP.value[i].set(s.pos.x,0,s.pos.z,s.w);floorMat.uniforms.uC.value[i].set(...s.A).multiplyScalar((.8+s.beat*.9+level*.3+hype*.4+dropFlash*1.5)*breathe*u.uDim.value)})}
   /* ---------- the back wall: the phone app's ring and seam words, drawn as thin light lines ---------- */
   const backG=new T3.Group();backG.position.set(0,.4,-19);scene.add(backG);
-  const lineMat=()=>new T3.MeshBasicMaterial({color:0xF2F0EA,transparent:true,opacity:.2,depthWrite:false,blending:T3.AdditiveBlending});
+  const lineMat=()=>new T3.MeshBasicMaterial({color:0xF2F0EA,transparent:true,opacity:.2,depthWrite:false});
   const RINGS=[{r:8.6,x:0,y:0,w:.035},{r:4.3,x:7.6,y:-3.1,w:.03},{r:2.4,x:-8.4,y:3.6,w:.03}].map(o=>{const m=new T3.Mesh(new T3.RingGeometry(o.r-o.w,o.r+o.w,256),lineMat());m.position.set(o.x,o.y,0);if(o.r>8)backG.add(m);return Object.assign(o,{m,p:0})});
   const seamCv=document.createElement('canvas');seamCv.width=2048;seamCv.height=96;{const x=seamCv.getContext('2d');x.fillStyle='#fff';x.font='900 64px Inter';x.textBaseline='middle';
     const draw=()=>{x.clearRect(0,0,2048,96);x.textAlign='left';x.fillText('SEND',8,50);x.textAlign='center';x.fillText('YOUR',1024,50);x.textAlign='right';x.fillText('SIGNAL.',2040,50);seamTex.needsUpdate=true};
@@ -3312,28 +3312,28 @@ void main(){vec3 col=vec3(.012,.016,.034);
     let skip=0;for(let y=0;y<H;y++){if(Math.random()<.02)skip=Math.random()*6|0;const rk=skip-->0?.25:1;for(let X=0;X<W;X++){const i=(y*W+X)*4,l=b[i]/255;
       a.data[i]=242;a.data[i+1]=240;a.data[i+2]=234;a.data[i+3]*=clamp((l-.25)*2.2,0,1)*rk*(.75+Math.random()*.25)}}
     x.putImageData(a,0,0);blTex.needsUpdate=true};im.onload=go;tn.onload=go;im.src=LOGO_SM;tn.src=TONER}
-  const blM=new T3.Mesh(new T3.PlaneGeometry(13,13*216/420),new T3.MeshBasicMaterial({map:blTex,transparent:true,opacity:.2,depthWrite:false,blending:T3.AdditiveBlending}));blM.position.set(0,2.4,-.2);backG.add(blM);
+  const blM=new T3.Mesh(new T3.PlaneGeometry(13,13*216/420),new T3.MeshBasicMaterial({map:blTex,transparent:true,opacity:.2,depthWrite:false}));blM.position.set(0,2.4,-.2);backG.add(blM);
   const seamLine=new T3.Mesh(new T3.PlaneGeometry(17.2,.035),lineMat());seamLine.position.set(0,-2.05,0);
   const RED=new T3.Color(1,.23,.08),PAPERC=new T3.Color(.95,.94,.92);
   function tickBack(t,dt){backG.rotation.z=Math.sin(t*.03)*.02;
     RINGS.forEach((o,i)=>{o.p=Math.max(0,o.p-dt*3);const k=1+o.p*.035*(1+hype)+Math.sin(t*.4+i)*.006;o.m.scale.set(k,k,1);
-      o.m.material.opacity=.16+o.p*.35*(.4+hype)+level*.1+dropFlash*.6;o.m.material.color.copy(PAPERC).lerp(RED,Math.min(1,hype*.8+dropFlash))});
-    seamM.material.opacity=.18+hype*.15+dropFlash*.5;blM.material.opacity=.17+hype*.08+beatPulse*.05+dropFlash*.3;seamLine.material.opacity=RINGS[0].m.material.opacity*.8}
+      o.m.material.opacity=.16+o.p*.35*(.4+hype)+level*.1+dropFlash*.6;o.m.material.color.copy(FG)});
+    seamM.material.opacity=.18+hype*.15+dropFlash*.5;blM.material.opacity=.1+hype*.05+beatPulse*.03+dropFlash*.15;blM.material.color.copy(FG);seamLine.material.opacity=RINGS[0].m.material.opacity*.8}
   /* ---------- sound waves: thin lines across the back of the room that move with the music ---------- */
   const WP=360,WAVES=[{y:4.6,f:.42,s:1.3,b:'hi',c:0xF2F0EA},{y:2.5,f:.27,s:-.9,b:'mid',c:0xFF3B14,osc:1},{y:.5,f:.18,s:.7,b:'lo',c:0xFF3B14},{y:-1.6,f:.33,s:-1.6,b:'mid',c:0xF2F0EA},{y:-3.7,f:.22,s:1.1,b:'lo',c:0xFF3B14,osc:1},{y:-5.6,f:.5,s:-.6,b:'hi',c:0xF2F0EA}].map((w,i)=>{
     const ls=[0,.035].map(o=>{const g=new T3.BufferGeometry();const a=new Float32Array(WP*3);for(let k=0;k<WP;k++)a[k*3]=-36+72*k/(WP-1);g.setAttribute('position',new T3.BufferAttribute(a,3));
-      const l=new T3.Line(g,new T3.LineBasicMaterial({color:w.c,transparent:true,opacity:.3,depthWrite:false,blending:T3.AdditiveBlending}));l.position.set(0,w.y+o,-16.5);scene.add(l);return l});
+      const l=new T3.Line(g,new T3.LineBasicMaterial({color:w.c,transparent:true,opacity:.3,depthWrite:false}));l.position.set(0,w.y+o,-16.5);scene.add(l);return l});
     if(![1,3,4].includes(i))ls.forEach(l=>{l.visible=false});
     return Object.assign(w,{ls,ph:i*1.7})});
   function tickWaves(t){const bandV={lo:bLo,mid:bMid,hi:bHi};
     WAVES.forEach(w=>{const e=bandV[w.b];const A=.05+e*2.4*(.5+hype)+beatPulse*.35*(.3+hype)+dropFlash*1.6;
       const op=.12+e*.5+hype*.25+beatPulse*.15+dropFlash*.5;
-      w.ls.forEach((l,j)=>{const a=l.geometry.attributes.position.array;l.material.opacity=op*(j?.55:1);
+      w.ls.forEach((l,j)=>{const a=l.geometry.attributes.position.array;l.material.opacity=Math.min(.85,op*1.4)*(j?.5:1);l.material.color.copy(FG);
         for(let k=0;k<WP;k++){const X=a[k*3],env=.35+.65*Math.pow(Math.sin(Math.PI*k/(WP-1)),.7);
           let y=Math.sin(X*w.f+t*w.s+w.ph)*.65+Math.sin(X*w.f*2.6-t*w.s*1.7+w.ph)*.35;
           if(w.osc&&td&&audioMode==='mic')y=y*.4+(td[(k*2)%td.length]-128)/40;
           a[k*3+1]=y*A*env}l.geometry.attributes.position.needsUpdate=true})})}
-  function spillAt(p,out){out.set(0,0,0);for(const s of slabs){const d2=_s.copy(p).sub(s.pos).setY(p.y*.4).lengthSq();const k=(1+s.beat)*6/(6+d2);out.x+=s.A[0]*k;out.y+=s.A[1]*k;out.z+=s.A[2]*k}return out.multiplyScalar(.45)}
+  function spillAt(p,out){out.set(0,0,0);return out;for(const s of slabs){const d2=_s.copy(p).sub(s.pos).setY(p.y*.4).lengthSq();const k=(1+s.beat)*6/(6+d2);out.x+=s.A[0]*k;out.y+=s.A[1]*k;out.z+=s.A[2]*k}return out.multiplyScalar(.45)}
 
   // ambient dust, gives the space depth
   const DN=420,dPos=new Float32Array(DN*3),dSeed=new Float32Array(DN);for(let i=0;i<DN;i++){dPos[i*3]=(Math.random()-.5)*18;dPos[i*3+1]=(Math.random()-.5)*11;dPos[i*3+2]=-6+Math.random()*10;dSeed[i]=Math.random()*100}
@@ -3362,8 +3362,8 @@ void main(){vec3 col=vec3(.012,.016,.034);
   }
   /* ---------- prize line: the rarest effects get taped to one thin line across the top of the room ---------- */
   const SLOTS=[];
-  const LINE_Y=4.25,LINE_Z=-7;
-  {const str=new T3.Mesh(new T3.PlaneGeometry(40,.014),new T3.MeshBasicMaterial({color:0xF2F0EA,transparent:true,opacity:.32,depthWrite:false}));str.position.set(0,LINE_Y+.01,LINE_Z);scene.add(str)}
+  const LINE_Y=4.25,LINE_Z=-7;let STR=null;
+  {const str=new T3.Mesh(new T3.PlaneGeometry(40,.014),new T3.MeshBasicMaterial({color:0xF2F0EA,transparent:true,opacity:.45,depthWrite:false}));str.position.set(0,LINE_Y+.01,LINE_Z);scene.add(str);STR=str}
   [-3.4,3.4,-5.0,5.0,-6.6,6.6,-8.2,8.2].forEach(x=>{const piv=new T3.Object3D();piv.position.set(x,LINE_Y,LINE_Z);scene.add(piv);SLOTS.push({sl:{w:1.3,z:LINE_Z},piv,card:null,ph:Math.random()*6,y:0,x})});
   const tapeMat=new T3.MeshBasicMaterial({color:0xE6E0D0,transparent:true,opacity:.86});
   const _m=new T3.Matrix4(),_q=new T3.Quaternion(),_ps=new T3.Vector3(),_sc=new T3.Vector3();
@@ -3440,14 +3440,24 @@ void main(){vec3 col=vec3(.012,.016,.034);
   function sunElevation(date){const rad=Math.PI/180,lat=41.369,lon=2.137;const d=date.getTime()/864e5-10957.5;const g=(357.529+.98560028*d)*rad,q=280.459+.98564736*d;
     const L=(q+1.915*Math.sin(g)+.02*Math.sin(2*g))*rad,e=(23.439-3.6e-7*d)*rad;const ra=Math.atan2(Math.cos(e)*Math.sin(L),Math.cos(L)),dec=Math.asin(Math.sin(e)*Math.sin(L));
     const gmst=((18.697374558+24.06570982441908*d)%24+24)%24;const H=(gmst*15+lon)*rad-ra;return Math.asin(Math.sin(lat*rad)*Math.sin(dec)+Math.cos(lat*rad)*Math.cos(dec)*Math.cos(H))/rad}
-  const SKY=[[40,'#0C1226','#0A0F20','#080C18'],[5,'#0D1126','#110F25','#170E20'],[0,'#0E1027','#190F26','#260E1C'],[-6,'#0A0C1E','#0E0C1D','#140B18'],[-12,'#05060E','#070812','#0A0B18'],[-90,'#05060E','#070812','#0A0B18']];
+  // rows: sun elevation, top, middle, bottom, line colour. Mornings stay beige and yellow; evenings climb to SIGNAL orange
+  const NIGHT=[[-6,'#9A3A2A','#7E2F27','#672A27','#FBD9C6'],[-12,'#5C2A2C','#4B2429','#3E2026','#F0C2AE'],[-90,'#4A2430','#3E1F2B','#341C27','#E8B7A4']];
+  const SKY_PM=[[40,'#F7EBD6','#F4DDB8','#F0CB98','#FF3B14'],[20,'#F8E1BC','#F6C892','#F3AE6C','#FF3B14'],[8,'#FFC08A','#FF9A58','#FF7A36','#FFF3E6'],[2,'#FF7A3C','#FF5520','#FF3B14','#FFF3E6'],[-2,'#F0562A','#D8441F','#BE3A20','#FFEADC'],...NIGHT];
+  const SKY_AM=[[40,'#F7EBD6','#F4DDB8','#F0CB98','#FF3B14'],[20,'#F9E9C8','#F7DBA8','#F4C686','#FF3B14'],[8,'#FBE6BC','#F9D294','#F6B872','#FF3B14'],[2,'#F7D2A2','#F2B888','#E89C70','#FFF3E6'],[-2,'#D98A6A','#C06E58','#A6564A','#FFEADC'],...NIGHT];
+  const FG=new T3.Color(1,.23,.08);
   const hex=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));const mixc=(a,b,t)=>{const A=hex(a),B=hex(b);return`rgb(${A.map((v,i)=>Math.round(lerp(v,B[i],t))).join(',')})`};
-  let timeMode='live',scrubMin=1200,sunE=20;
+  let timeMode='live',scrubMin=1170,sunE=20;
   function skyDate(){return timeMode==='live'?new Date():new Date(Date.UTC(2028,8,14,0,0)+(scrubMin-120)*6e4)}
-  function updateSky(){const dt=skyDate();const e=sunElevation(dt);sunE=e;let i=0;while(i<SKY.length-2&&e<SKY[i+1][0])i++;const a=SKY[i],b=SKY[i+1];const t=clamp((a[0]-e)/(a[0]-b[0]),0,1);
-    const x=bgCv.getContext('2d'),g=x.createLinearGradient(0,0,0,640);g.addColorStop(0,mixc(a[1],b[1],t));g.addColorStop(.58,mixc(a[2],b[2],t));g.addColorStop(1,mixc(a[3],b[3],t));x.fillStyle=g;x.fillRect(0,0,1024,640);
-    // photocopier toner over the dark: grain, streaks and drag marks, like the moodboard prints
-    if(tonerIm.complete&&tonerIm.naturalWidth){x.save();x.globalCompositeOperation='screen';x.globalAlpha=.16;x.drawImage(tonerIm,0,0,1024,653);x.globalCompositeOperation='multiply';x.globalAlpha=.55;x.drawImage(tonerIm,-40,-60,1100,760);x.restore()}
+  function updateSky(){const dt=skyDate();const e=sunElevation(dt);sunE=e;
+    const hr=+dt.toLocaleTimeString('en-GB',{timeZone:'Europe/Madrid',hour:'2-digit',hour12:false});const SKY=hr<14&&hr>=3?SKY_AM:SKY_PM;
+    let i=0;while(i<SKY.length-2&&e<SKY[i+1][0])i++;const a=SKY[i],b=SKY[i+1];const t=clamp((a[0]-e)/(a[0]-b[0]),0,1);
+    const x=bgCv.getContext('2d'),c0=mixc(a[1],b[1],t),c1=mixc(a[2],b[2],t),c2=mixc(a[3],b[3],t),g=x.createLinearGradient(0,0,0,640);
+    g.addColorStop(0,c0);g.addColorStop(.55,c1);g.addColorStop(1,c2);x.fillStyle=g;x.fillRect(0,0,1024,640);
+    // one soft glow low in the middle, like light coming through the hall doors
+    const rg=x.createRadialGradient(512,600,0,512,600,620);rg.addColorStop(0,'rgba(255,246,232,.22)');rg.addColorStop(1,'rgba(255,246,232,0)');x.fillStyle=rg;x.fillRect(0,0,1024,640);
+    const lc=hex(a[4]).map((v,k)=>lerp(v,hex(b[4])[k],t)/255);FG.setRGB(lc[0],lc[1],lc[2]);if(STR)STR.material.color.copy(FG);
+    const L=hex(a[2]).map((v,k)=>lerp(v,hex(b[2])[k],t)/255),lum=.2126*L[0]+.7152*L[1]+.0722*L[2];
+    document.body.style.setProperty('--fg',lum>.62?'#101010':'#F2F0EA');document.body.style.setProperty('--bgc',c1);
     bgTex.needsUpdate=true;
     $('#clock').textContent=dt.toLocaleTimeString('en-GB',{timeZone:'Europe/Madrid',hour:'2-digit',minute:'2-digit'})+' · sun '+(e>=0?'+':'')+e.toFixed(1)+'°';
     $('#phase').textContent=e>6?'Daylight':e>0?'Golden hour':e>-6?'Sunset':e>-12?'Blue hour':'Night';
